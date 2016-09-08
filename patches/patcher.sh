@@ -13,6 +13,7 @@ if [ "$PATCHES" == "" ] ; then
 		 frameworks/opt/net/wifi \
 		 frameworks/opt/net/ims \
 		 #frameworks/opt/telephony \
+		 external/chromium-libpac \
 		 external/libpng \
 		 external/jhead \
 		 external/koush/Superuser \
@@ -30,6 +31,7 @@ if [ "$PATCHES" == "" ] ; then
 		 system/extras \
 		 system/keymaster \
 		 system/media \
+		 system/security/keystore \
 		 system/vold"
 
 fi

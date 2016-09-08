@@ -1,0 +1,43 @@
+From a5bb2bed278e45cb284abd9fde46779ca9daf43d Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Thu, 8 Sep 2016 13:04:14 +0700
+Subject: [PATCH] Revert "libbt-vendor (BRCM): Add ssr_cleanup"
+
+This reverts commit 1415972ac5aae4673586b0c09dcea6975ad77b3a.
+
+Change-Id: Ic955f9f485a383bff93541be35830dce1663b3f8
+---
+ src/bt_vendor_brcm.c | 17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/bt_vendor_brcm.c b/src/bt_vendor_brcm.c
+index ca1d657..082664f 100755
+--- a/src/bt_vendor_brcm.c
++++ b/src/bt_vendor_brcm.c
+@@ -248,19 +248,10 @@ static void cleanup( void )
+     bt_vendor_cbacks = NULL;
+ }
+ 
+-/** SSR cleanup is used in HW reset cases
+- *  which would close all the client channels
+- *  and turns off the chip */
+-static void ssr_cleanup( int reason )
+-{
+-    BTVNDDBG("ssr_cleanup");
+-}
+-
+ // Entry point of DLib
+ const bt_vendor_interface_t BLUETOOTH_VENDOR_LIB_INTERFACE = {
+-    .size = sizeof(bt_vendor_interface_t),
+-    .init = init,
+-    .op = op,
+-    .cleanup = cleanup,
+-    .ssr_cleanup = ssr_cleanup,
++    sizeof(bt_vendor_interface_t),
++    init,
++    op,
++    cleanup
+ };
+-- 
+2.5.0
+

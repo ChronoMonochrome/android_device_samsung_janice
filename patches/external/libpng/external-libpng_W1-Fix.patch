@@ -1,29 +1,33 @@
-diff --git a/png.c b/png.c
-index 6562cd3..e5d495b 100644
---- a/png.c
-+++ b/png.c
-@@ -2276,9 +2276,8 @@ png_compare_ICC_profile_with_sRGB(png_const_structrp png_ptr,
-                       * problems if they are used, therefore attempt to
-                       * discourage their use, skip the 'have_md5' warning below,
-                       * which is made irrelevant by this error.
--                      */
-                      png_chunk_report(png_ptr, "known incorrect sRGB profile",
--                        PNG_CHUNK_ERROR);
-+                        PNG_CHUNK_ERROR); */
-                   }
+From 46f0361ac8953230ee3e1e39a51a8a1dff0e3d5e Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Mon, 29 Aug 2016 01:32:29 +0700
+Subject: [PATCH] Fix build
+
+Change-Id: If8141f8c5ff92e61b4c7ef13084df516607c2e14
+---
+ Android.mk | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/Android.mk b/Android.mk
+index 959b73c..68a103b 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -21,14 +21,13 @@ common_SRC_FILES := \
+ 	pngwutil.c \
  
-                   /* Warn that this being done; this isn't even an error since
-@@ -2301,11 +2301,10 @@ png_compare_ICC_profile_with_sRGB(png_const_structrp png_ptr,
-          /* The signature matched, but the profile had been changed in some
-           * way.  This probably indicates a data error or uninformed hacking.
-           * Fall through to "no match".
--          */
-          png_chunk_report(png_ptr,
--             "Not recognizing known sRGB profile that has been edited", 
-+             "Not recognizing known sRGB profile that has been edited",
-              PNG_CHUNK_WARNING);
--         break;
-+         break; */
- # endif
-       }
-    }
+ ifeq ($(ARCH_ARM_HAVE_NEON),true)
+-my_cflags_arm := -DPNG_ARM_NEON_OPT=2
++my_cflags_arm := -fPIC -std=gnu89 -DPNG_ARM_NEON_OPT=2
+ endif
+ 
+ my_cflags_arm64 := -DPNG_ARM_NEON_OPT=2
+ 
+ # BUG: http://llvm.org/PR19472 - SLP vectorization (on ARM at least) crashes
+ # when we can't lower a vectorized bswap.
+-my_cflags_arm += -fno-slp-vectorize
+ 
+ my_src_files_arm := \
+ 			arm/arm_init.c \
+-- 
+2.5.0
+

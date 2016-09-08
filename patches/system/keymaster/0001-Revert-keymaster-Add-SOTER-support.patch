@@ -1,0 +1,38 @@
+From f6f3c8832560ec64da78028e4e7f670331a9d969 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Fri, 9 Sep 2016 02:06:45 +0700
+Subject: [PATCH] Revert "keymaster: Add SOTER support"
+
+This reverts commit dc06a0f1f26ff5431d13c544b0603c32d97ba2e9.
+
+Change-Id: I5dc373f40dfdbbde2b2ceecd540b4de94637347c
+---
+ keymaster_enforcement.cpp | 12 ------------
+ 1 file changed, 12 deletions(-)
+
+diff --git a/keymaster_enforcement.cpp b/keymaster_enforcement.cpp
+index b3f9a10..4d0aaef 100644
+--- a/keymaster_enforcement.cpp
++++ b/keymaster_enforcement.cpp
+@@ -325,18 +325,6 @@ keymaster_error_t KeymasterEnforcement::AuthorizeBegin(const keymaster_purpose_t
+ 
+         case KM_TAG_BOOTLOADER_ONLY:
+             return KM_ERROR_INVALID_KEY_BLOB;
+-
+-        /* Ignored soter tags */
+-        case KM_TAG_SOTER_IS_FROM_SOTER:
+-        case KM_TAG_SOTER_IS_AUTO_SIGNED_WITH_ATTK_WHEN_GET_PUBLIC_KEY:
+-        case KM_TAG_SOTER_IS_AUTO_SIGNED_WITH_COMMON_KEY_WHEN_GET_PUBLIC_KEY:
+-        case KM_TAG_SOTER_AUTO_SIGNED_COMMON_KEY_WHEN_GET_PUBLIC_KEY:
+-        case KM_TAG_SOTER_AUTO_ADD_COUNTER_WHEN_GET_PUBLIC_KEY:
+-        case KM_TAG_SOTER_IS_SECMSG_FID_COUNTER_SIGNED_WHEN_SIGN:
+-        case KM_TAG_SOTER_USE_NEXT_ATTK:
+-        case KM_TAG_SOTER_UID:
+-        case KM_TAG_SOTER_AUTO_SIGNED_COMMON_KEY_WHEN_GET_PUBLIC_KEY_BLOB:
+-            break;
+         }
+     }
+ 
+-- 
+2.5.0
+

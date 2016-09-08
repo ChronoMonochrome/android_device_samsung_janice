@@ -1,0 +1,24 @@
+From d96d894e691e7ef43270b79f7a29c76fa4257a8b Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Thu, 8 Sep 2016 13:18:40 +0700
+Subject: [PATCH] Use clang
+
+Change-Id: I7893b16e5e02b8d6090a08e20427a2c8442beed3
+---
+ Android.mk | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/Android.mk b/Android.mk
+index 24548ca..c2aa86e 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -26,5 +26,6 @@ LOCAL_STATIC_LIBRARIES := libv8
+ LOCAL_SHARED_LIBRARIES := libutils liblog
+ 
+ LOCAL_CXX_STL := libc++
++LOCAL_CLANG := true
+ 
+ include $(BUILD_SHARED_LIBRARY)
+-- 
+2.5.0
+
