@@ -21,13 +21,14 @@ if [ "$PATCHES" == "" ] ; then
 		 external/webrtc \
 		 #hardware/libhardware \
 		 hardware/libhardware_legacy \
+		 hardware/broadcom/libbt \
 		 hardware/ril \
 		 libcore \
 		 packages/inputmethods/LatinIME \
 		 packages/providers/MediaProvider \
 		 packages/services/Telecomm \
 		 system/bt \
-		 system/core \
+		 #system/core \
 		 system/extras \
 		 system/keymaster \
 		 system/media \

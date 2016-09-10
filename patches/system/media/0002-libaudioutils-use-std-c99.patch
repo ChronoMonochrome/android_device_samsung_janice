@@ -1,0 +1,26 @@
+From d677ca79151c118e10eca5e9ce8c0607d282f876 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Thu, 8 Sep 2016 13:18:06 +0700
+Subject: [PATCH 2/2] libaudioutils: use -std=c99
+
+Change-Id: I17654b03a3b84ade11cab7ba0fcb1ee7212fd63d
+---
+ audio_utils/Android.mk | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/audio_utils/Android.mk b/audio_utils/Android.mk
+index 03ba817..c8edf8e 100644
+--- a/audio_utils/Android.mk
++++ b/audio_utils/Android.mk
+@@ -5,6 +5,8 @@ include $(CLEAR_VARS)
+ LOCAL_MODULE := libaudioutils
+ LOCAL_MODULE_TAGS := optional
+ 
++LOCAL_CFLAGS := -std=gnu99
++
+ LOCAL_SRC_FILES:= \
+ 	channels.c \
+ 	fifo.c \
+-- 
+2.5.0
+
