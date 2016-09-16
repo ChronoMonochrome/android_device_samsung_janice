@@ -6,6 +6,7 @@ KERNEL_PATCH="kernel/codina/chrono"
 
 if [ "$PATCHES" == "" ] ; then
 	PATCHES="\
+		 art \
 		 bootable/recovery \
 		 #frameworks/av \
 		 #frameworks/base \
@@ -13,6 +14,7 @@ if [ "$PATCHES" == "" ] ; then
 		 frameworks/opt/net/wifi \
 		 frameworks/opt/net/ims \
 		 #frameworks/opt/telephony \
+		 external/boringssl \
 		 external/chromium-libpac \
 		 external/libpng \
 		 external/jhead \

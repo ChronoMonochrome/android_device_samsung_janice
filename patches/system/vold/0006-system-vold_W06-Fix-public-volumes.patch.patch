@@ -1,0 +1,45 @@
+From 06a66e98aff772fabdd550d113cb7a50f3444954 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Sat, 10 Sep 2016 10:09:54 +0700
+Subject: [PATCH 6/7] system-vold_W06-Fix-public-volumes.patch
+
+Change-Id: I9c3a526678a38c75cfde953d4d870828e82d7222
+---
+ VolumeManager.cpp | 4 ++--
+ fs/Vfat.cpp       | 5 +++++
+ 2 files changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/VolumeManager.cpp b/VolumeManager.cpp
+index ccfcff5..fca4719 100755
+--- a/VolumeManager.cpp
++++ b/VolumeManager.cpp
+@@ -283,8 +283,8 @@ void VolumeManager::handleBlockEvent(NetlinkEvent *evt) {
+         evt->dump();
+     }
+ 
+-    std::string eventPath(evt->findParam("DEVPATH"));
+-    std::string devType(evt->findParam("DEVTYPE"));
++    std::string eventPath(evt->findParam("DEVPATH")?evt->findParam("DEVPATH"):"");
++    std::string devType(evt->findParam("DEVTYPE")?evt->findParam("DEVTYPE"):"");
+ 
+     if (devType != "disk") return;
+ 
+diff --git a/fs/Vfat.cpp b/fs/Vfat.cpp
+index faff763..1e2e021 100644
+--- a/fs/Vfat.cpp
++++ b/fs/Vfat.cpp
+@@ -108,6 +108,11 @@ status_t Check(const std::string& source) {
+             errno = EIO;
+             return -1;
+ 
++        case 8:
++            SLOGE("Filesystem check failed (no filesystem)");
++            errno = ENODATA;
++            return -1;
++
+         default:
+             SLOGE("Filesystem check failed (unknown exit code %d)", rc);
+             errno = EIO;
+-- 
+2.5.0
+

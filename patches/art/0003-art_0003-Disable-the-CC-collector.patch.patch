@@ -1,0 +1,50 @@
+From 52c7c9ddcfbbfe07ba801d7e750e0bfa591f3909 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Thu, 15 Sep 2016 05:25:24 +0700
+Subject: [PATCH 3/3] art_0003-Disable-the-CC-collector.patch
+
+Change-Id: I739cd9e53d9d0ebe9e8f7e1c9db37ce4e9f4fef4
+---
+ runtime/gc/collector/concurrent_copying.h | 5 ++---
+ runtime/read_barrier.h                    | 5 ++---
+ 2 files changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/runtime/gc/collector/concurrent_copying.h b/runtime/gc/collector/concurrent_copying.h
+index 60ea6b6..7188cad 100644
+--- a/runtime/gc/collector/concurrent_copying.h
++++ b/runtime/gc/collector/concurrent_copying.h
+@@ -134,11 +134,10 @@ class MarkQueue {
+ 
+ class ConcurrentCopying : public GarbageCollector {
+  public:
+-  // TODO: disable thse flags for production use.
+   // Enable the no-from-space-refs verification at the pause.
+-  static constexpr bool kEnableNoFromSpaceRefsVerification = true;
++  static constexpr bool kEnableNoFromSpaceRefsVerification = kIsDebugBuild;
+   // Enable the from-space bytes/objects check.
+-  static constexpr bool kEnableFromSpaceAccountingCheck = true;
++  static constexpr bool kEnableFromSpaceAccountingCheck = kIsDebugBuild;
+   // Enable verbose mode.
+   static constexpr bool kVerboseMode = true;
+ 
+diff --git a/runtime/read_barrier.h b/runtime/read_barrier.h
+index aa72e97..8709a17 100644
+--- a/runtime/read_barrier.h
++++ b/runtime/read_barrier.h
+@@ -36,11 +36,10 @@ class ArtMethod;
+ 
+ class ReadBarrier {
+  public:
+-  // TODO: disable thse flags for production use.
+   // Enable the to-space invariant checks.
+-  static constexpr bool kEnableToSpaceInvariantChecks = true;
++  static constexpr bool kEnableToSpaceInvariantChecks = kIsDebugBuild;
+   // Enable the read barrier checks.
+-  static constexpr bool kEnableReadBarrierInvariantChecks = true;
++  static constexpr bool kEnableReadBarrierInvariantChecks = kIsDebugBuild;
+ 
+   // It's up to the implementation whether the given field gets
+   // updated whereas the return value must be an updated reference.
+-- 
+2.5.0
+

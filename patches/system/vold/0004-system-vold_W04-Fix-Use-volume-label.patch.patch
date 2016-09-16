@@ -1,0 +1,31 @@
+From c73bbe1e8517bc594ae684e6e896aed50460b087 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Sat, 10 Sep 2016 10:09:54 +0700
+Subject: [PATCH 4/7] system-vold_W04-Fix-Use-volume-label.patch
+
+Change-Id: I42df059fe89a324e9c2b37965daacb8d96bf748d
+---
+ PublicVolume.cpp | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/PublicVolume.cpp b/PublicVolume.cpp
+index 03ce45e..3f6bbfd 100644
+--- a/PublicVolume.cpp
++++ b/PublicVolume.cpp
+@@ -113,9 +113,11 @@ status_t PublicVolume::doMount() {
+         return -EIO;
+     }
+ 
+-    // Use UUID as stable name, if available
++    // Use volume label and otherwise UUID as stable name, if available
+     std::string stableName = getId();
+-    if (!mFsUuid.empty()) {
++    if (!mFsLabel.empty()) {
++        stableName = mFsLabel;
++    } else if (!mFsUuid.empty()) {
+         stableName = mFsUuid;
+     }
+ 
+-- 
+2.5.0
+
