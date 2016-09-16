@@ -111,25 +111,43 @@ apply_all() {
     cd $tmp
 }
 
-# pre clean 
+clean() {
 
-echo -e $CL_GRN"get rid of any uncommitted or unstaged changes"$CL_RST
+	# pre clean 
 
-patches=$PWD
-cd $LOCAL_PATH
+	echo -e $CL_GRN"get rid of any uncommitted or unstaged changes"$CL_RST
 
-for i in $PATCHES
-do
-	if [ -n "$(echo $i | grep '#')" ] ; then
-		continue
-	fi
+	patches=$PWD
+	cd $LOCAL_PATH
 
-	pre_clean $i
-done
+	for i in $PATCHES
+	do
+		if [ -n "$(echo $i | grep '#')" ] ; then
+			continue
+		fi
 
+		pre_clean $i
+	done
+}
 
-if [ "$1" != "clean" ]; then
+sync_patches() {
+	WD=$PWD
+	cd $LOCAL_PATH
 
+	for i in  $PATCHES
+	do
+		if [ -n "$(echo $i | grep '#')" ] ; then
+			continue
+		fi
+
+		echo -e $CL_GRN"$i: syncing patches"$CL_RST
+		rm -fr $WD/$i/*.patch
+		cp $i/*.patch $WD/$i
+	done
+}
+
+apply_patches() {
+	clean
 	cd $patches
 
 	# copy patches
@@ -150,6 +168,14 @@ if [ "$1" != "clean" ]; then
 
 		apply_all $i
 	done
+}
+
+if [ "$1" == "" ] ; then
+	apply_patches
+elif [ "$1" == "sync_patches" ] ; then
+	sync_patches
+else
+	clean
 fi
 
 cd $CURRENT_DIR
