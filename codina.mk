@@ -181,6 +181,9 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     libstlport
 
+# Gralloc := \
+    gralloc.montblanc
+
 # Snap Camera
 PRODUCT_PACKAGES += \
     Snap \
