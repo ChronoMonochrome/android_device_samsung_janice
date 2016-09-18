@@ -864,13 +864,13 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
             dc.als                  = p.readInt();
             dc.isVoice              = (0 != p.readInt());
             isVideo                 = (0 != p.readInt());
-            dc.isVoicePrivacy       = (0 != p.readInt());
+            dc.isVoicePrivacy       = false;
             dc.number               = p.readString();
-            int np                  = p.readInt();
-            dc.numberPresentation   = DriverCall.presentationFromCLIP(np);
-            dc.name                 = p.readString();
-            dc.namePresentation     = p.readInt();
-            int uusInfoPresent      = p.readInt();
+            int np                  = 0;
+            dc.numberPresentation   = 1;
+            dc.name                 = null;
+            dc.namePresentation     = 0;
+            int uusInfoPresent      = 0;
 
             Rlog.d(RILJ_LOG_TAG, "state = " + dc.state);
             Rlog.d(RILJ_LOG_TAG, "index = " + dc.index);
