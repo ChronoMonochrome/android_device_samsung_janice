@@ -24,7 +24,7 @@ if [ "$PATCHES" == "" ] ; then
 		 #hardware/libhardware \
 		 hardware/libhardware_legacy \
 		 hardware/broadcom/libbt \
-		 hardware/ril \
+		 #hardware/ril \
 		 libcore \
 		 packages/inputmethods/LatinIME \
 		 packages/providers/MediaProvider \
