@@ -864,7 +864,7 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
             dc.als                  = p.readInt();
             dc.isVoice              = (0 != p.readInt());
             isVideo                 = (0 != p.readInt());
-            isVoicePrivacy          = (0 != p.readInt());
+            isVoicePrivacy          = (0 != p.readInt()) && SystemProperties.getBoolean("ste.ril.isVoicePrivacy", false);
             dc.isVoicePrivacy       = isVoicePrivacy;
             dc.number               = p.readString();
             int np                  = 0;
