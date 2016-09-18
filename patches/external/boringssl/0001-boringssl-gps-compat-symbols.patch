@@ -1,0 +1,54 @@
+From 5000946f91ef0547241206af68781cbf6117dd94 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Thu, 15 Sep 2016 04:30:30 +0700
+Subject: [PATCH] boringssl: gps compat symbols
+
+courtesy of SergeyL@4pda
+
+Change-Id: Iddbab817cab06124a3dbfca84330bff2c511e828
+---
+ src/crypto/mem.c          | 5 +++++
+ src/include/openssl/mem.h | 4 ++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/src/crypto/mem.c b/src/crypto/mem.c
+index ce41440..c52b001 100644
+--- a/src/crypto/mem.c
++++ b/src/crypto/mem.c
+@@ -116,6 +116,11 @@ void OPENSSL_cleanse(void *ptr, size_t len) {
+ #endif  /* !OPENSSL_NO_ASM */
+ }
+ 
++/* Needed by gpsd */
++void *CRYPTO_malloc(int num, const char *file, int line) {
++  return OPENSSL_malloc(num);
++}
++
+ int CRYPTO_memcmp(const void *in_a, const void *in_b, size_t len) {
+   size_t i;
+   const uint8_t *a = in_a;
+diff --git a/src/include/openssl/mem.h b/src/include/openssl/mem.h
+index 42ec46a..6a5eba8 100644
+--- a/src/include/openssl/mem.h
++++ b/src/include/openssl/mem.h
+@@ -78,6 +78,9 @@ extern "C" {
+ #define OPENSSL_realloc realloc
+ #define OPENSSL_free free
+ 
++/* Needed by gpsd */
++OPENSSL_EXPORT void *CRYPTO_malloc(int num, const char *file, int line);
++
+ /* OPENSSL_realloc_clean acts like |realloc|, but clears the previous memory
+  * buffer.  Because this is implemented as a wrapper around |malloc|, it needs
+  * to be given the size of the buffer pointed to by |ptr|. */
+@@ -94,6 +97,7 @@ OPENSSL_EXPORT void OPENSSL_cleanse(void *ptr, size_t len);
+  * non-zero. */
+ OPENSSL_EXPORT int CRYPTO_memcmp(const void *a, const void *b, size_t len);
+ 
++
+ /* OPENSSL_hash32 implements the 32 bit, FNV-1a hash. */
+ OPENSSL_EXPORT uint32_t OPENSSL_hash32(const void *ptr, size_t len);
+ 
+-- 
+2.5.0
+

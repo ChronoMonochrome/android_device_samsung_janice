@@ -28,13 +28,13 @@ if [ "$PATCHES" == "" ] ; then
 		 libcore \
 		 packages/inputmethods/LatinIME \
 		 packages/providers/MediaProvider \
-		 packages/services/Telecomm \
+		 #packages/services/Telecomm \
 		 system/bt \
 		 #system/core \
 		 system/extras \
 		 system/keymaster \
 		 system/media \
-		 system/security/keystore \
+		 #system/security/keystore \
 		 system/vold"
 
 fi
