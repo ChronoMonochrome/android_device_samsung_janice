@@ -836,7 +836,7 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
     protected Object
     responseCallList(Parcel p) {
         int num;
-        boolean isVideo;
+        boolean isVideo, isVoicePrivacy;
         ArrayList<DriverCall> response;
         DriverCall dc;
         int dataAvail = p.dataAvail();
@@ -864,7 +864,8 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
             dc.als                  = p.readInt();
             dc.isVoice              = (0 != p.readInt());
             isVideo                 = (0 != p.readInt());
-            dc.isVoicePrivacy       = false;
+            isVoicePrivacy          = (0 != p.readInt());
+            dc.isVoicePrivacy       = isVoicePrivacy;
             dc.number               = p.readString();
             int np                  = 0;
             dc.numberPresentation   = 1;
