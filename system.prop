@@ -54,7 +54,6 @@ dalvik.vm.dex2oat-filter=everything
 #dalvik.vm.image-dex2oat-filter=speed
 #dalvik.vm.dex2oat-filter=interpret-only
 
-
 # hwui
 ro.hwui.drop_shadow_cache_size=1
 ro.hwui.gradient_cache_size=0.2
@@ -67,7 +66,11 @@ ro.hwui.texture_cache_size=8
 ste.use_google_h264_encoder=true
 #ste.use_ffmpeg_h264_encoder=true
 
+# Disable atlas service
 config.disable_atlas=true
+
+# Sdcardfs
+ro.sdcardfs.enable=true
 
 # DriveDroid fix
 #sys.config.sd0_optdevice=/dev/null
