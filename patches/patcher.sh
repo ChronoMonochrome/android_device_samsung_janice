@@ -29,6 +29,7 @@ if [ "$PATCHES" == "" ] ; then
 		 packages/inputmethods/LatinIME \
 		 packages/providers/MediaProvider \
 		 #packages/services/Telecomm \
+		 packages/services/Telephony \
 		 system/bt \
 		 #system/core \
 		 system/extras \
