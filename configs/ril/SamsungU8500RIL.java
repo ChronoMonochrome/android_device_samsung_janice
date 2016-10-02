@@ -604,27 +604,6 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
                 }
             }
 
-            switch (rr.mRequest) {
-                case RIL_REQUEST_GET_RADIO_CAPABILITY: {
-                    // Ideally RIL's would support this or at least give NOT_SUPPORTED
-                    // but the hammerhead RIL reports GENERIC :(
-                    // TODO - remove GENERIC_FAILURE catching: b/21079604
-                    if (REQUEST_NOT_SUPPORTED == error ||
-                            GENERIC_FAILURE == error) {
-                        // we should construct the RAF bitmask the radio
-                        // supports based on preferred network bitmasks
-                        ret = makeStaticRadioCapability();
-                        error = 0;
-                    }
-                    break;
-                }
-                case RIL_REQUEST_GET_ACTIVITY_INFO:
-                    ret = new ModemActivityInfo(0, 0, 0,
-                            new int [ModemActivityInfo.TX_POWER_LEVELS], 0, 0);
-                    error = 0;
-                    break;
-            }
-
             if (error != 0) rr.onError(error, ret);
         }
 
