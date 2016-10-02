@@ -11,7 +11,7 @@ if [ "$PATCHES" == "" ] ; then
 		 #frameworks/av \
 		 #frameworks/base \
 		 #frameworks/native  \
-		 frameworks/opt/net/wifi \
+		 #frameworks/opt/net/wifi \
 		 frameworks/opt/net/ims \
 		 #frameworks/opt/telephony \
 		 external/boringssl \
