@@ -33,7 +33,7 @@
 
 #include "codina.h"
 
-#define DEBUG
+//#define DEBUG
 
 #ifdef DEBUG
 #define DEBUG_LOG(x...) ALOGD(x)
@@ -50,12 +50,12 @@ static int prev_profile = 2;
 
 static void write_string(char *path, char *value) {
     int fd = open(path, O_WRONLY);
-	if(!fd) { ALOGE("Unable to open to %s", path); return;}
+	if(!fd) { DEBUG_LOG("Unable to open to %s", path); return;}
 
 	ssize_t bytes_written = write(fd, value, strlen(value));
 
 	if (bytes_written < 1 || bytes_written < strlen(value)) {
-		ALOGE("Unable to write to %s : %d",path, bytes_written);
+		DEBUG_LOG("Unable to write to %s : %d",path, bytes_written);
 	}
 
     close(fd);
@@ -195,7 +195,7 @@ static void power_hint_set_profile(struct power_module *module, int p) {
 	    ALOGI("Set performance profile.");
 	    break;
         default:
-	    ALOGE("Unknown power profile %d", p);
+	    DEBUG_LOG("Unknown power profile %d", p);
 	    break;
     }
 
@@ -209,7 +209,7 @@ static void power_hint_low_power(int on) {
     else if ((!on) && low_power)
        power_hint_set_profile(global_module, prev_profile);
     else
-       ALOGE("%s: setting the same state %d will not change profile", __func__, on);
+       DEBUG_LOG("%s: setting the same state %d will not change profile", __func__, on);
 
     low_power = on;
 }
@@ -267,7 +267,7 @@ static void power_hint(struct power_module *module, power_hint_t hint,
 		power_hint_set_profile(module, var);
 		break;
         default:
-		ALOGE("Unknown power hint %d", hint);
+		DEBUG_LOG("Unknown power hint %d", hint);
         	break;
     }
 }
@@ -294,7 +294,7 @@ static int get_feature(struct power_module *module, feature_t feature) {
 #endif
 	    break;
         default:
-	    ALOGE("Unknown feature %d", feature);
+	    DEBUG_LOG("Unknown feature %d", feature);
             break;
     }
     return retval;
@@ -312,7 +312,7 @@ static void set_feature(struct power_module *module, feature_t feature, int stat
 #endif
 	    break;
         default:
-	    ALOGE("Unknown feature %d", feature);
+	    DEBUG_LOG("Unknown feature %d", feature);
             break;
     }
 }
