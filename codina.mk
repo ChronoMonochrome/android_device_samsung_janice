@@ -184,6 +184,10 @@ PRODUCT_PACKAGES += \
 # Gralloc := \
     gralloc.montblanc
 
+# Power HAL := \
+    power.montblanc \
+    profile
+
 # Snap Camera
 PRODUCT_PACKAGES += \
     Snap \

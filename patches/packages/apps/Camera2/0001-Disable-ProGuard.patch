@@ -1,0 +1,85 @@
+From 820a7be957c7728cbda2fcd43b029d2225060c9f Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Fri, 17 Feb 2017 19:38:06 +0700
+Subject: [PATCH] Disable ProGuard
+
+Change-Id: Ib90c2b11a710c169ae7f636debc83f2c39d239a8
+---
+ Android.mk     |  2 +-
+ proguard.flags | 53 ++++++++---------------------------------------------
+ 2 files changed, 9 insertions(+), 46 deletions(-)
+
+diff --git a/Android.mk b/Android.mk
+index 8a50335..5f44e39 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -26,7 +26,7 @@ LOCAL_AAPT_FLAGS := \
+ 
+ LOCAL_PACKAGE_NAME := Camera2
+ 
+-LOCAL_SDK_VERSION := current
++#LOCAL_SDK_VERSION := current
+ 
+ LOCAL_PROGUARD_FLAG_FILES := proguard.flags
+ 
+diff --git a/proguard.flags b/proguard.flags
+index 624af0f..6d606d1 100644
+--- a/proguard.flags
++++ b/proguard.flags
+@@ -1,45 +1,8 @@
+-# Disable the warnings of using dynamic method call in common library.
+--dontnote com.android.gallery3d.common.*
+-
+-# ctors of subclasses of CameraPreference are called with Java reflection.
+--keep class * extends com.android.camera.CameraPreference {
+-  <init>(...);
+-}
+-
+--keep class com.android.camera.CameraActivity {
+-  public boolean isRecording();
+-  public long getAutoFocusTime();
+-  public long getShutterLag();
+-  public long getShutterToPictureDisplayedTime();
+-  public long getPictureDisplayedToJpegCallbackTime();
+-  public long getJpegCallbackFinishTime();
+-  public long getCaptureStartTime();
+-  public long getFirstPreviewTime();
+-}
+-
+--keep class com.android.camera.VideoModule {
+-  public void onCancelBgTraining(...);
+-  public void onProtectiveCurtainClick(...);
+-}
+-
+--keep class * extends android.app.Activity {
+-  @com.android.camera.OnClickAttr <methods>;
+-}
+-
+--keep class com.android.camera.CameraHolder {
+-  public static void injectMockCamera(...);
+-}
+-
+-# Disable the warnings of using dynamic method calls in EffectsRecorder
+--dontnote com.android.camera.EffectsRecorder
+-
+-# For unit testing:
+-
+-# - Required for running exif tests on userdebug
+--keep class com.android.gallery3d.exif.ExifTag { *; }
+--keep class com.android.gallery3d.exif.ExifData { *; }
+--keep class com.android.gallery3d.exif.ExifInterface { *; }
+--keepclassmembers class com.android.gallery3d.exif.Util {
+-  *** closeSilently(...);
+-}
+-
++-dontwarn
++-dontoptimize
++-dontshrink
++-dontusemixedcaseclassnames
++-dontskipnonpubliclibraryclasses
++-dontpreverify
++-verbose
++-dontobfuscate
+-- 
+2.9.3
+

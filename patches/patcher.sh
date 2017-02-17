@@ -26,6 +26,7 @@ if [ "$PATCHES" == "" ] ; then
 		 hardware/broadcom/libbt \
 		 #hardware/ril \
 		 libcore \
+		 packages/apps/Camera2 \
 		 packages/inputmethods/LatinIME \
 		 packages/providers/MediaProvider \
 		 #packages/services/Telecomm \

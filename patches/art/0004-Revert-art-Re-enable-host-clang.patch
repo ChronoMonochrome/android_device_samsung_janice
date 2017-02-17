@@ -1,0 +1,32 @@
+From ce9ea72283b99c39c949300dfd50dcc4d708b7d7 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Fri, 17 Feb 2017 18:48:33 +0700
+Subject: [PATCH 4/4] Revert "art: Re-enable host clang"
+
+This reverts commit 98055703ed43ca66e4756b1994d90bb6bbb2e5e4.
+---
+ build/Android.common_build.mk | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/build/Android.common_build.mk b/build/Android.common_build.mk
+index ae516c1..9114f05 100644
+--- a/build/Android.common_build.mk
++++ b/build/Android.common_build.mk
+@@ -72,7 +72,13 @@ ART_TARGET_CFLAGS :=
+ 
+ # Host.
+ ART_HOST_CLANG := false
+-ifneq ($(WITHOUT_HOST_CLANG),true)
++
++ifeq ($(HOST_OS),darwin)
++  # Local darwin gcc is ancient
++  WITHOUT_HOST_CLANG ?= false
++endif
++
++ifeq ($(WITHOUT_HOST_CLANG),false)
+   # By default, host builds use clang for better warnings.
+   ART_HOST_CLANG := true
+ endif
+-- 
+2.9.3
+
