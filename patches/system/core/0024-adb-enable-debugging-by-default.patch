@@ -1,0 +1,196 @@
+From f62fd0dafadea6e6ccdd9f3aa39e9839f615251d Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Tue, 16 May 2017 19:02:10 +0300
+Subject: [PATCH 24/25] adb: enable debugging by default
+
+Change-Id: Iedb668303dec28c21d20047ecd3269e0021fc70c
+---
+ adb/Android.mk                          | 20 ++++++-------
+ adb/daemon/main.cpp                     |  2 --
+ adb/set_verity_enable_state_service.cpp | 50 ---------------------------------
+ include/mincrypt/rsa.h                  |  2 ++
+ 4 files changed, 11 insertions(+), 63 deletions(-)
+
+diff --git a/adb/Android.mk b/adb/Android.mk
+index de93e69..c78b6b3 100644
+--- a/adb/Android.mk
++++ b/adb/Android.mk
+@@ -11,7 +11,7 @@ adb_target_sanitize :=
+ adb_version := $(shell git -C $(LOCAL_PATH) rev-parse --short=12 HEAD 2>/dev/null)-android
+ 
+ ADB_COMMON_CFLAGS := \
+-    -Wall -Wextra -Werror \
++    -Wall -Wextra  \
+     -Wno-unused-parameter \
+     -Wno-missing-field-initializers \
+     -Wvla \
+@@ -116,7 +116,7 @@ include $(BUILD_STATIC_LIBRARY)
+ 
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := libadb
+-LOCAL_MODULE_HOST_OS := darwin linux windows
++LOCAL_MODULE_HOST_OS := linux
+ LOCAL_CFLAGS := $(LIBADB_CFLAGS) -DADB_HOST=1
+ LOCAL_CFLAGS_windows := $(LIBADB_windows_CFLAGS)
+ LOCAL_CFLAGS_linux := $(LIBADB_linux_CFLAGS)
+@@ -155,14 +155,14 @@ LOCAL_SRC_FILES := \
+ LOCAL_SANITIZE := $(adb_target_sanitize)
+ LOCAL_STATIC_LIBRARIES := libadbd libcrypto_utils_static libcrypto_static
+ LOCAL_SHARED_LIBRARIES := liblog libbase libcutils
+-include $(BUILD_NATIVE_TEST)
++#include $(BUILD_NATIVE_TEST)
+ 
+ # libdiagnose_usb
+ # =========================================================
+ 
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := libdiagnose_usb
+-LOCAL_MODULE_HOST_OS := darwin linux windows
++LOCAL_MODULE_HOST_OS := linux
+ LOCAL_CFLAGS := $(LIBADB_CFLAGS)
+ LOCAL_SRC_FILES := diagnose_usb.cpp
+ # Even though we're building a static library (and thus there's no link step for
+@@ -175,7 +175,7 @@ include $(BUILD_HOST_STATIC_LIBRARY)
+ 
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := adb_test
+-LOCAL_MODULE_HOST_OS := darwin linux windows
++LOCAL_MODULE_HOST_OS := linux
+ LOCAL_CFLAGS := -DADB_HOST=1 $(LIBADB_CFLAGS)
+ LOCAL_CFLAGS_windows := $(LIBADB_windows_CFLAGS)
+ LOCAL_CFLAGS_linux := $(LIBADB_linux_CFLAGS)
+@@ -212,7 +212,7 @@ LOCAL_STATIC_LIBRARIES_windows := AdbWinApi
+ 
+ LOCAL_MULTILIB := first
+ 
+-include $(BUILD_HOST_NATIVE_TEST)
++#include $(BUILD_HOST_NATIVE_TEST)
+ 
+ # adb device tracker (used by ddms) test tool
+ # =========================================================
+@@ -229,7 +229,7 @@ LOCAL_SANITIZE := $(adb_host_sanitize)
+ LOCAL_SHARED_LIBRARIES := libbase
+ LOCAL_STATIC_LIBRARIES := libadb libcrypto_utils_static libcrypto_static libcutils
+ LOCAL_LDLIBS += -lrt -ldl -lpthread
+-include $(BUILD_HOST_EXECUTABLE)
++#include $(BUILD_HOST_EXECUTABLE)
+ endif
+ 
+ # adb host tool
+@@ -274,7 +274,7 @@ LOCAL_CFLAGS_darwin := \
+ 
+ LOCAL_MODULE := adb
+ LOCAL_MODULE_TAGS := debug
+-LOCAL_MODULE_HOST_OS := darwin linux windows
++LOCAL_MODULE_HOST_OS := linux
+ 
+ LOCAL_SANITIZE := $(adb_host_sanitize)
+ LOCAL_STATIC_LIBRARIES := \
+@@ -329,12 +329,10 @@ LOCAL_CFLAGS := \
+     -D_GNU_SOURCE \
+     -Wno-deprecated-declarations \
+ 
+-LOCAL_CFLAGS += -DALLOW_ADBD_NO_AUTH=$(if $(filter userdebug eng,$(TARGET_BUILD_VARIANT)),1,0)
++LOCAL_CFLAGS += -DALLOW_ADBD_NO_AUTH=1
+ 
+-ifneq (,$(filter userdebug eng,$(TARGET_BUILD_VARIANT)))
+ LOCAL_CFLAGS += -DALLOW_ADBD_DISABLE_VERITY=1
+ LOCAL_CFLAGS += -DALLOW_ADBD_ROOT=1
+-endif
+ 
+ LOCAL_MODULE := adbd
+ 
+diff --git a/adb/daemon/main.cpp b/adb/daemon/main.cpp
+index 039896f..1d3ce71 100644
+--- a/adb/daemon/main.cpp
++++ b/adb/daemon/main.cpp
+@@ -169,9 +169,7 @@ int adbd_main(int server_port) {
+     // descriptor will always be open.
+     adbd_cloexec_auth_socket();
+ 
+-    if (ALLOW_ADBD_NO_AUTH && property_get_bool("ro.adb.secure", 0) == 0) {
+         auth_required = false;
+-    }
+ 
+     adbd_auth_init();
+ 
+diff --git a/adb/set_verity_enable_state_service.cpp b/adb/set_verity_enable_state_service.cpp
+index f5188e9..011ecf6 100644
+--- a/adb/set_verity_enable_state_service.cpp
++++ b/adb/set_verity_enable_state_service.cpp
+@@ -90,54 +90,4 @@ static int set_verity_enabled_state(int fd, const char *block_device,
+ 
+ void set_verity_enabled_state_service(int fd, void* cookie)
+ {
+-    bool enable = (cookie != NULL);
+-    if (kAllowDisableVerity) {
+-        char fstab_filename[PROPERTY_VALUE_MAX + sizeof(FSTAB_PREFIX)];
+-        char propbuf[PROPERTY_VALUE_MAX];
+-        int i;
+-        bool any_changed = false;
+-
+-        property_get("ro.secure", propbuf, "0");
+-        if (strcmp(propbuf, "1")) {
+-            WriteFdFmt(fd, "verity not enabled - ENG build\n");
+-            goto errout;
+-        }
+-
+-        property_get("ro.debuggable", propbuf, "0");
+-        if (strcmp(propbuf, "1")) {
+-            WriteFdFmt(fd, "verity cannot be disabled/enabled - USER build\n");
+-            goto errout;
+-        }
+-
+-        property_get("ro.hardware", propbuf, "");
+-        snprintf(fstab_filename, sizeof(fstab_filename), FSTAB_PREFIX"%s",
+-                 propbuf);
+-
+-        fstab = fs_mgr_read_fstab(fstab_filename);
+-        if (!fstab) {
+-            WriteFdFmt(fd, "Failed to open %s\nMaybe run adb root?\n", fstab_filename);
+-            goto errout;
+-        }
+-
+-        /* Loop through entries looking for ones that vold manages */
+-        for (i = 0; i < fstab->num_entries; i++) {
+-            if(fs_mgr_is_verified(&fstab->recs[i])) {
+-                if (!set_verity_enabled_state(fd, fstab->recs[i].blk_device,
+-                                              fstab->recs[i].mount_point,
+-                                              enable)) {
+-                    any_changed = true;
+-                }
+-           }
+-        }
+-
+-        if (any_changed) {
+-            WriteFdFmt(fd, "Now reboot your device for settings to take effect\n");
+-        }
+-    } else {
+-        WriteFdFmt(fd, "%s-verity only works for userdebug builds\n",
+-                   enable ? "enable" : "disable");
+-    }
+-
+-errout:
+-    adb_close(fd);
+ }
+diff --git a/include/mincrypt/rsa.h b/include/mincrypt/rsa.h
+index 3d0556b..2ccd1f0 100644
+--- a/include/mincrypt/rsa.h
++++ b/include/mincrypt/rsa.h
+@@ -45,11 +45,13 @@ typedef struct RSAPublicKey {
+     int exponent;             /* 3 or 65537 */
+ } RSAPublicKey;
+ 
++#ifndef FS_MGR
+ int RSA_verify(const RSAPublicKey *key,
+                const uint8_t* signature,
+                const int len,
+                const uint8_t* hash,
+                const int hash_len);
++#endif
+ 
+ #ifdef __cplusplus
+ }
+-- 
+2.5.0
+

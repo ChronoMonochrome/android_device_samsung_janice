@@ -1,0 +1,26 @@
+From 7199ce239eb99575707072a746d8b3428bc1fd62 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Thu, 4 May 2017 10:26:25 +0300
+Subject: [PATCH 13/25] system-core_WW04-set-DOWNLOAD-CACHE.patch
+
+Change-Id: Ie97aeea97439a5119a89a99208250a690d7749bb
+---
+ rootdir/init.rc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/rootdir/init.rc b/rootdir/init.rc
+index 1d16cae..2324d36 100644
+--- a/rootdir/init.rc
++++ b/rootdir/init.rc
+@@ -243,7 +243,7 @@ on init
+     # expecting it to point to /proc/self/fd
+     symlink /proc/self/fd /dev/fd
+ 
+-    export DOWNLOAD_CACHE ${ro.device.cache_dir}
++    export DOWNLOAD_CACHE /cache
+ 
+     # set RLIMIT_NICE to allow priorities from 19 to -20
+     setrlimit 13 40 40
+-- 
+2.5.0
+

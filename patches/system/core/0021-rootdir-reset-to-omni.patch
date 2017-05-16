@@ -1,0 +1,340 @@
+From d3bcdf0c9889b14e18c792da1d869dd85e7064a7 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Sat, 6 May 2017 13:08:22 +0300
+Subject: [PATCH 21/25] rootdir: reset to omni
+
+Change-Id: Iad6e864723a43ae413f31f4d2547d521ef431ef1
+---
+ rootdir/Android.mk           | 11 +++-----
+ rootdir/init.environ.rc.in   |  1 -
+ rootdir/init.rc              | 29 +++------------------
+ rootdir/init.usb.configfs.rc | 60 --------------------------------------------
+ rootdir/ueventd.rc           |  4 +--
+ 5 files changed, 9 insertions(+), 96 deletions(-)
+
+diff --git a/rootdir/Android.mk b/rootdir/Android.mk
+index c6df57e..7d0c87d 100644
+--- a/rootdir/Android.mk
++++ b/rootdir/Android.mk
+@@ -151,21 +151,16 @@ endif
+ 
+ include $(BUILD_SYSTEM)/base_rules.mk
+ 
+-# Regenerate init.environ.rc if PRODUCT_BOOTCLASSPATH or TARGET_LDPRELOAD has changed.
+-bcp_md5 := $(word 1, $(shell echo $(PRODUCT_BOOTCLASSPATH) $(PRODUCT_SYSTEM_SERVER_CLASSPATH) $(TARGET_LDPRELOAD) | $(MD5SUM)))
++# Regenerate init.environ.rc if PRODUCT_BOOTCLASSPATH has changed.
++bcp_md5 := $(word 1, $(shell echo $(PRODUCT_BOOTCLASSPATH) $(PRODUCT_SYSTEM_SERVER_CLASSPATH) | $(MD5SUM)))
+ bcp_dep := $(intermediates)/$(bcp_md5).bcp.dep
+ $(bcp_dep) :
+ 	$(hide) mkdir -p $(dir $@) && rm -rf $(dir $@)*.bcp.dep && touch $@
+ 
+-ifneq ($(strip $(TARGET_LDPRELOAD)),)
+-    TARGET_LDPRELOAD_STR := :$(TARGET_LDPRELOAD)
+-endif
+-
+ $(LOCAL_BUILT_MODULE): $(LOCAL_PATH)/init.environ.rc.in $(bcp_dep)
+ 	@echo "Generate: $< -> $@"
+ 	@mkdir -p $(dir $@)
+-	$(hide) sed -e 's?%BOOTCLASSPATH%?$(PRODUCT_BOOTCLASSPATH)?g'\
+-                -e 's?%TARGET_LDPRELOAD%?$(TARGET_LDPRELOAD_STR)?g' $< >$@
++	$(hide) sed -e 's?%BOOTCLASSPATH%?$(PRODUCT_BOOTCLASSPATH)?g' $< >$@
+ 	$(hide) sed -i -e 's?%SYSTEMSERVERCLASSPATH%?$(PRODUCT_SYSTEM_SERVER_CLASSPATH)?g' $@
+ 	$(hide) sed -i -e 's?%EXPORT_GLOBAL_ASAN_OPTIONS%?$(EXPORT_GLOBAL_ASAN_OPTIONS)?g' $@
+ 
+diff --git a/rootdir/init.environ.rc.in b/rootdir/init.environ.rc.in
+index 032e698..32817fa 100644
+--- a/rootdir/init.environ.rc.in
++++ b/rootdir/init.environ.rc.in
+@@ -9,5 +9,4 @@ on init
+     export ASEC_MOUNTPOINT /mnt/asec
+     export BOOTCLASSPATH %BOOTCLASSPATH%
+     export SYSTEMSERVERCLASSPATH %SYSTEMSERVERCLASSPATH%
+-    export LD_PRELOAD libsigchain.so%TARGET_LDPRELOAD%
+     %EXPORT_GLOBAL_ASAN_OPTIONS%
+diff --git a/rootdir/init.rc b/rootdir/init.rc
+index 2324d36..df60f65 100644
+--- a/rootdir/init.rc
++++ b/rootdir/init.rc
+@@ -9,10 +9,6 @@ import /init.usb.rc
+ import /init.${ro.hardware}.rc
+ import /init.usb.configfs.rc
+ import /init.${ro.zygote}.rc
+-import /init.kernel.rc
+-# Include CM's extra init file
+-import /init.cm.rc
+-
+ 
+ on early-init
+     # Set init and its forked children's oom_adj.
+@@ -55,22 +51,18 @@ on init
+     mount cgroup none /dev/stune schedtune
+     mkdir /dev/stune/foreground
+     mkdir /dev/stune/background
+-    mkdir /dev/stune/system-background
+     mkdir /dev/stune/top-app
+     chown system system /dev/stune
+     chown system system /dev/stune/foreground
+     chown system system /dev/stune/background
+-    chown system system /dev/stune/system-background
+     chown system system /dev/stune/top-app
+     chown system system /dev/stune/tasks
+     chown system system /dev/stune/foreground/tasks
+     chown system system /dev/stune/background/tasks
+-    chown system system /dev/stune/system-background/tasks
+     chown system system /dev/stune/top-app/tasks
+     chmod 0664 /dev/stune/tasks
+     chmod 0664 /dev/stune/foreground/tasks
+     chmod 0664 /dev/stune/background/tasks
+-    chmod 0664 /dev/stune/system-background/tasks
+     chmod 0664 /dev/stune/top-app/tasks
+ 
+     # Mount staging areas for devices managed by vold
+@@ -148,7 +140,6 @@ on init
+     mkdir /dev/cpuctl
+     mount cgroup none /dev/cpuctl cpu
+     chown system system /dev/cpuctl
+-    chmod 0660 /dev/cpuctl
+     chown system system /dev/cpuctl/tasks
+     chmod 0666 /dev/cpuctl/tasks
+     write /dev/cpuctl/cpu.rt_period_us 1000000
+@@ -243,7 +234,7 @@ on init
+     # expecting it to point to /proc/self/fd
+     symlink /proc/self/fd /dev/fd
+ 
+-    export DOWNLOAD_CACHE /cache
++    export DOWNLOAD_CACHE /data/cache
+ 
+     # set RLIMIT_NICE to allow priorities from 19 to -20
+     setrlimit 13 40 40
+@@ -491,9 +482,6 @@ on post-fs-data
+ 
+     # Set SELinux security contexts on upgrade or policy update.
+     restorecon_recursive /data
+-    restorecon /data/data
+-    restorecon /data/user
+-    restorecon /data/user/0
+ 
+     # Check any timezone data in /data is newer than the copy in /system, delete if not.
+     exec - system system -- /system/bin/tzdatacheck /system/usr/share/zoneinfo /data/misc/zoneinfo
+@@ -573,11 +561,8 @@ on boot
+     chown system system /sys/class/leds/button-backlight/brightness
+     chown system system /sys/class/leds/jogball-backlight/brightness
+     chown system system /sys/class/leds/red/brightness
+-    chown system system /sys/class/leds/red/blink
+     chown system system /sys/class/leds/green/brightness
+-    chown system system /sys/class/leds/green/blink
+     chown system system /sys/class/leds/blue/brightness
+-    chown system system /sys/class/leds/blue/blink
+     chown system system /sys/class/leds/red/device/grpfreq
+     chown system system /sys/class/leds/red/device/grppwm
+     chown system system /sys/class/leds/red/device/blink
+@@ -680,12 +665,6 @@ on property:ro.debuggable=1
+     chmod 0773 /data/misc/trace
+     start console
+ 
+-#service flash_recovery /system/bin/install-recovery.sh
+-#    class main
+-#    oneshot
+-#    disabled
+-
+-# update recovery if enabled
+-#on property:persist.sys.recovery_update=true
+-#    start flash_recovery
+-
++service flash_recovery /system/bin/install-recovery.sh
++    class main
++    oneshot
+diff --git a/rootdir/init.usb.configfs.rc b/rootdir/init.usb.configfs.rc
+index f076304..186384b 100644
+--- a/rootdir/init.usb.configfs.rc
++++ b/rootdir/init.usb.configfs.rc
+@@ -14,10 +14,6 @@ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=adb && property:sys.u
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x4ee7
+     symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f1
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+     setprop sys.usb.state ${sys.usb.config}
+@@ -27,10 +23,6 @@ on property:sys.usb.config=mtp && property:sys.usb.configfs=1
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x4ee1
+     symlink /config/usb_gadget/g1/functions/mtp.gs0 /config/usb_gadget/g1/configs/b.1/f1
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+     setprop sys.usb.state ${sys.usb.config}
+@@ -43,10 +35,6 @@ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=mtp,adb && property:s
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x4ee2
+     symlink /config/usb_gadget/g1/functions/mtp.gs0 /config/usb_gadget/g1/configs/b.1/f1
+     symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f2
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+@@ -57,10 +45,6 @@ on property:sys.usb.config=ptp && property:sys.usb.configfs=1
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x4ee5
+     symlink /config/usb_gadget/g1/functions/ptp.gs1 /config/usb_gadget/g1/configs/b.1/f1
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+     setprop sys.usb.state ${sys.usb.config}
+@@ -73,10 +57,6 @@ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=ptp,adb && property:s
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x4ee6
+     symlink /config/usb_gadget/g1/functions/ptp.gs1 /config/usb_gadget/g1/configs/b.1/f1
+     symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f2
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+@@ -87,10 +67,6 @@ on property:sys.usb.config=accessory && property:sys.usb.configfs=1
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x2d00
+     symlink /config/usb_gadget/g1/functions/accessory.gs2 /config/usb_gadget/g1/configs/b.1/f1
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+     setprop sys.usb.state ${sys.usb.config}
+@@ -103,10 +79,6 @@ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=accessory,adb && prop
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x2d01
+     symlink /config/usb_gadget/g1/functions/accessory.gs2 /config/usb_gadget/g1/configs/b.1/f1
+     symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f2
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+@@ -117,10 +89,6 @@ on property:sys.usb.config=audio_source && property:sys.usb.configfs=1
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x2d02
+     symlink /config/usb_gadget/g1/functions/audio_source.gs2 /config/usb_gadget/g1/configs/b.1/f1
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+     setprop sys.usb.state ${sys.usb.config}
+@@ -133,10 +101,6 @@ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=audio_source,adb && p
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x2d03
+     symlink /config/usb_gadget/g1/functions/audio_source.gs2 /config/usb_gadget/g1/configs/b.1/f1
+     symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f2
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+@@ -147,10 +111,6 @@ on property:sys.usb.config=accessory,audio_source && property:sys.usb.configfs=1
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x2d04
+     symlink /config/usb_gadget/g1/functions/accessory.gs2 /config/usb_gadget/g1/configs/b.1/f1
+     symlink /config/usb_gadget/g1/functions/audio_source.gs3 /config/usb_gadget/g1/configs/b.1/f2
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+@@ -164,10 +124,6 @@ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=accessory,audio_sourc
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x2d05
+     symlink /config/usb_gadget/g1/functions/accessory.gs2 /config/usb_gadget/g1/configs/b.1/f1
+     symlink /config/usb_gadget/g1/functions/audio_source.gs3 /config/usb_gadget/g1/configs/b.1/f2
+     symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f3
+@@ -179,10 +135,6 @@ on property:sys.usb.config=midi && property:sys.usb.configfs=1
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x4ee8
+     symlink /config/usb_gadget/g1/functions/midi.gs5 /config/usb_gadget/g1/configs/b.1/f1
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+     setprop sys.usb.state ${sys.usb.config}
+@@ -195,10 +147,6 @@ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=midi,adb && property:
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x4ee9
+     symlink /config/usb_gadget/g1/functions/midi.gs5 /config/usb_gadget/g1/configs/b.1/f1
+     symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f2
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+@@ -209,10 +157,6 @@ on property:sys.usb.config=rndis && property:sys.usb.configfs=1
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x4ee3
+     symlink /config/usb_gadget/g1/functions/rndis.gs4 /config/usb_gadget/g1/configs/b.1/f1
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+     setprop sys.usb.state ${sys.usb.config}
+@@ -225,10 +169,6 @@ on property:sys.usb.ffs.ready=1 && property:sys.usb.config=rndis,adb && property
+     rm /config/usb_gadget/g1/configs/b.1/f1
+     rm /config/usb_gadget/g1/configs/b.1/f2
+     rm /config/usb_gadget/g1/configs/b.1/f3
+-    rm /config/usb_gadget/g1/configs/b.1/f4
+-    rm /config/usb_gadget/g1/configs/b.1/f5
+-    write /config/usb_gadget/g1/idVendor 0x18d1
+-    write /config/usb_gadget/g1/idProduct 0x4ee4
+     symlink /config/usb_gadget/g1/functions/rndis.gs4 /config/usb_gadget/g1/configs/b.1/f1
+     symlink /config/usb_gadget/g1/functions/ffs.adb /config/usb_gadget/g1/configs/b.1/f2
+     write /config/usb_gadget/g1/UDC ${sys.usb.controller}
+diff --git a/rootdir/ueventd.rc b/rootdir/ueventd.rc
+index d16e02f..6ef491c 100644
+--- a/rootdir/ueventd.rc
++++ b/rootdir/ueventd.rc
+@@ -35,7 +35,7 @@ subsystem adf
+ /dev/dri/*                0666   root       graphics
+ 
+ # these should not be world writable
+-/dev/diag                 0660   system     qcom_diag
++/dev/diag                 0660   radio      radio
+ /dev/diag_arm9            0660   radio      radio
+ /dev/android_adb          0660   adb        adb
+ /dev/android_adb_enable   0660   adb        adb
+@@ -45,7 +45,7 @@ subsystem adf
+ /dev/alarm                0664   system     radio
+ /dev/rtc0                 0640   system     system
+ /dev/tty0                 0660   root       system
+-/dev/graphics/*           0660   system     graphics
++/dev/graphics/*           0660   root       graphics
+ /dev/msm_hw3dm            0660   system     graphics
+ /dev/input/*              0660   root       input
+ /dev/eac                  0660   root       audio
+-- 
+2.5.0
+

@@ -1,0 +1,1711 @@
+From 1d267600f251609bfd1bd0badb56ca30dd824eb6 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Tue, 16 May 2017 14:18:49 +0300
+Subject: [PATCH 22/25] Fix healthd build
+
+Change-Id: I388c86c32fa589870c39c9e0f4882cd2a099ef17
+---
+ healthd/Android.mk                       | 103 ++----
+ healthd/BatteryMonitor.cpp               | 322 +------------------
+ healthd/BatteryPropertiesRegistrar.cpp   |   1 -
+ healthd/BatteryPropertiesRegistrar.h     |   1 -
+ healthd/healthd.cpp                      |  42 +--
+ healthd/healthd_board_default.cpp        |  20 --
+ healthd/healthd_mode_charger.cpp         | 529 ++++++++++++-------------------
+ healthd/include/healthd/BatteryMonitor.h |   1 -
+ healthd/include/healthd/healthd.h        |  47 ---
+ 9 files changed, 256 insertions(+), 810 deletions(-)
+
+diff --git a/healthd/Android.mk b/healthd/Android.mk
+index 2c6be36..e61a064 100644
+--- a/healthd/Android.mk
++++ b/healthd/Android.mk
+@@ -19,50 +19,16 @@ LOCAL_STATIC_LIBRARIES := libutils
+ include $(BUILD_STATIC_LIBRARY)
+ 
+ include $(CLEAR_VARS)
+-LOCAL_SRC_FILES := healthd_board_msm.cpp
+-LOCAL_MODULE := libhealthd.qcom
+-LOCAL_CFLAGS := -Werror
+-LOCAL_C_INCLUDES := $(LOCAL_PATH)/include
+-LOCAL_EXPORT_C_INCLUDE_DIRS := $(LOCAL_PATH)/include
+-include $(BUILD_STATIC_LIBRARY)
+-
+-include $(CLEAR_VARS)
+ ifeq ($(strip $(BOARD_CHARGER_ENABLE_SUSPEND)),true)
+ LOCAL_CFLAGS += -DCHARGER_ENABLE_SUSPEND
+ LOCAL_SHARED_LIBRARIES += libsuspend
+ endif
+-LOCAL_SRC_FILES := \
+-    healthd_mode_android.cpp \
+-    healthd_mode_charger.cpp \
+-    AnimationParser.cpp \
+-    BatteryPropertiesRegistrar.cpp \
+-
+-LOCAL_MODULE := libhealthd_internal
+-LOCAL_C_INCLUDES := $(call project-path-for,recovery)
+-LOCAL_EXPORT_C_INCLUDE_DIRS := \
+-    $(LOCAL_PATH) \
+-    $(LOCAL_PATH)/include \
+-
+-LOCAL_STATIC_LIBRARIES := \
+-    libbatterymonitor \
+-    libbatteryservice \
+-    libbinder \
+-    libminui \
+-    libpng \
+-    libz \
+-    libutils \
+-    libbase \
+-    libcutils \
+-    liblog \
+-    libm \
+-    libc \
+-
+-include $(BUILD_STATIC_LIBRARY)
+-
+-include $(CLEAR_VARS)
+ 
+ LOCAL_SRC_FILES := \
+-    healthd.cpp \
++	healthd.cpp \
++	healthd_mode_android.cpp \
++	healthd_mode_charger.cpp \
++	BatteryPropertiesRegistrar.cpp
+ 
+ LOCAL_MODULE := healthd
+ LOCAL_MODULE_TAGS := optional
+@@ -72,19 +38,31 @@ LOCAL_UNSTRIPPED_PATH := $(TARGET_ROOT_OUT_SBIN_UNSTRIPPED)
+ 
+ LOCAL_CFLAGS := -D__STDC_LIMIT_MACROS -Werror
+ 
+-HEALTHD_CHARGER_DEFINES := RED_LED_PATH \
++HEALTHD_PATH := \
++    RED_LED_PATH \
+     GREEN_LED_PATH \
+     BLUE_LED_PATH \
+-    BLINK_PATH \
+-    BACKLIGHT_PATH \
+-    CHARGING_ENABLED_PATH
++    TW_BRIGHTNESS_PATH \
++    TW_SECONDARY_BRIGHTNESS_PATH
+ 
+-$(foreach healthd_charger_define,$(HEALTHD_CHARGER_DEFINES), \
++$(foreach healthd_charger_define,$(HEALTHD_PATH), \
+   $(if $($(healthd_charger_define)), \
+     $(eval LOCAL_CFLAGS += -D$(healthd_charger_define)=\"$($(healthd_charger_define))\") \
+   ) \
+ )
+ 
++ifeq ($(strip $(HEALTHD_FORCE_BACKLIGHT_CONTROL)),true)
++LOCAL_CFLAGS += -DHEALTHD_FORCE_BACKLIGHT_CONTROL
++endif
++
++ifeq ($(strip $(HEALTHD_ENABLE_TRICOLOR_LED)),true)
++LOCAL_CFLAGS += -DHEALTHD_ENABLE_TRICOLOR_LED
++endif
++
++ifneq ($(strip $(HEALTHD_BACKLIGHT_ON_LEVEL)),)
++LOCAL_CFLAGS += -DHEALTHD_BACKLIGHT_ON_LEVEL=$(HEALTHD_BACKLIGHT_ON_LEVEL)
++endif
++
+ ifeq ($(strip $(BOARD_CHARGER_DISABLE_INIT_BLANK)),true)
+ LOCAL_CFLAGS += -DCHARGER_DISABLE_INIT_BLANK
+ endif
+@@ -93,10 +71,6 @@ ifeq ($(strip $(BOARD_CHARGER_ENABLE_SUSPEND)),true)
+ LOCAL_CFLAGS += -DCHARGER_ENABLE_SUSPEND
+ endif
+ 
+-ifeq ($(strip $(BOARD_NO_CHARGER_LED)),true)
+-LOCAL_CFLAGS += -DNO_CHARGER_LED
+-endif
+-
+ ifneq ($(BOARD_PERIODIC_CHORES_INTERVAL_FAST),)
+ LOCAL_CFLAGS += -DBOARD_PERIODIC_CHORES_INTERVAL_FAST=$(BOARD_PERIODIC_CHORES_INTERVAL_FAST)
+ endif
+@@ -104,23 +78,9 @@ endif
+ ifneq ($(BOARD_PERIODIC_CHORES_INTERVAL_SLOW),)
+ LOCAL_CFLAGS += -DBOARD_PERIODIC_CHORES_INTERVAL_SLOW=$(BOARD_PERIODIC_CHORES_INTERVAL_SLOW)
+ endif
++LOCAL_C_INCLUDES := bootable/recovery
+ 
+-LOCAL_C_INCLUDES := $(call project-path-for,recovery)
+-
+-LOCAL_STATIC_LIBRARIES := \
+-    libhealthd_internal \
+-    libbatterymonitor \
+-    libbatteryservice \
+-    libbinder \
+-    libminui \
+-    libpng \
+-    libz \
+-    libutils \
+-    libbase \
+-    libcutils \
+-    liblog \
+-    libm \
+-    libc
++LOCAL_STATIC_LIBRARIES := libbatterymonitor libbatteryservice libbinder libminui libpng libz libutils libcutils liblog libm libc
+ 
+ ifeq ($(strip $(BOARD_CHARGER_ENABLE_SUSPEND)),true)
+ LOCAL_STATIC_LIBRARIES += libsuspend
+@@ -128,20 +88,16 @@ endif
+ 
+ LOCAL_HAL_STATIC_LIBRARIES := libhealthd
+ 
+-ifeq ($(BOARD_USES_QCOM_HARDWARE),true)
+-BOARD_HAL_STATIC_LIBRARIES ?= libhealthd.qcom
+-endif
+-
+-# Symlink /charger to /sbin/charger
++# Symlink /charger to /sbin/healthd
+ LOCAL_POST_INSTALL_CMD := $(hide) mkdir -p $(TARGET_ROOT_OUT) \
+-    && rm -f $(TARGET_ROOT_OUT)/charger && ln -sf /sbin/charger $(TARGET_ROOT_OUT)/charger
++    && ln -sf /sbin/healthd $(TARGET_ROOT_OUT)/charger
+ 
+ include $(BUILD_EXECUTABLE)
+ 
+ 
+ define _add-charger-image
+ include $$(CLEAR_VARS)
+-LOCAL_MODULE := system_core_charger_res_images_$(notdir $(1))
++LOCAL_MODULE := system_core_charger_$(notdir $(1))
+ LOCAL_MODULE_STEM := $(notdir $(1))
+ _img_modules += $$(LOCAL_MODULE)
+ LOCAL_SRC_FILES := $1
+@@ -152,13 +108,8 @@ include $$(BUILD_PREBUILT)
+ endef
+ 
+ _img_modules :=
+-ifeq ($(strip $(BOARD_HEALTHD_CUSTOM_CHARGER_RES)),)
+-IMAGES_DIR := images
+-else
+-IMAGES_DIR := ../../../$(BOARD_HEALTHD_CUSTOM_CHARGER_RES)
+-endif
+ _images :=
+-$(foreach _img, $(call find-subdir-subdir-files, "$(IMAGES_DIR)", "*.png"), \
++$(foreach _img, $(call find-subdir-subdir-files, "images", "*.png"), \
+   $(eval $(call _add-charger-image,$(_img))))
+ 
+ include $(CLEAR_VARS)
+diff --git a/healthd/BatteryMonitor.cpp b/healthd/BatteryMonitor.cpp
+index d2088ee..e772c9c 100644
+--- a/healthd/BatteryMonitor.cpp
++++ b/healthd/BatteryMonitor.cpp
+@@ -1,6 +1,5 @@
+ /*
+  * Copyright (C) 2013 The Android Open Source Project
+- * Copyright (C) 2015 The CyanogenMod Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -63,13 +62,10 @@ static void initBatteryProperties(BatteryProperties* props) {
+     props->chargerAcOnline = false;
+     props->chargerUsbOnline = false;
+     props->chargerWirelessOnline = false;
+-    props->chargerDockAcOnline = false;
+     props->maxChargingCurrent = 0;
+     props->maxChargingVoltage = 0;
+     props->batteryStatus = BATTERY_STATUS_UNKNOWN;
+     props->batteryHealth = BATTERY_HEALTH_UNKNOWN;
+-    props->dockBatteryStatus = BATTERY_STATUS_UNKNOWN;
+-    props->dockBatteryHealth = BATTERY_HEALTH_UNKNOWN;
+     props->batteryPresent = false;
+     props->batteryLevel = 0;
+     props->batteryVoltage = 0;
+@@ -167,16 +163,11 @@ BatteryMonitor::PowerSupplyType BatteryMonitor::readPowerSupplyType(const String
+             { "USB_HVDCP", ANDROID_POWER_SUPPLY_TYPE_AC },
+             { "USB_CDP", ANDROID_POWER_SUPPLY_TYPE_AC },
+             { "USB_ACA", ANDROID_POWER_SUPPLY_TYPE_AC },
++            { "DASH", ANDROID_POWER_SUPPLY_TYPE_AC },
+             { "USB_C", ANDROID_POWER_SUPPLY_TYPE_AC },
+             { "USB_PD", ANDROID_POWER_SUPPLY_TYPE_AC },
+             { "USB_PD_DRP", ANDROID_POWER_SUPPLY_TYPE_USB },
+-            { "USB_HVDCP", ANDROID_POWER_SUPPLY_TYPE_AC },
+-            { "USB_HVDCP_3", ANDROID_POWER_SUPPLY_TYPE_AC },
+             { "Wireless", ANDROID_POWER_SUPPLY_TYPE_WIRELESS },
+-            { "Wipower", ANDROID_POWER_SUPPLY_TYPE_WIRELESS },
+-            { "DASH", ANDROID_POWER_SUPPLY_TYPE_AC },
+-            { "DockBattery", ANDROID_POWER_SUPPLY_TYPE_DOCK_BATTERY },
+-            { "DockAC", ANDROID_POWER_SUPPLY_TYPE_DOCK_AC },
+             { NULL, 0 },
+     };
+ 
+@@ -184,8 +175,10 @@ BatteryMonitor::PowerSupplyType BatteryMonitor::readPowerSupplyType(const String
+         return ANDROID_POWER_SUPPLY_TYPE_UNKNOWN;
+ 
+     ret = (BatteryMonitor::PowerSupplyType)mapSysfsString(buf, supplyTypeMap);
+-    if (ret < 0)
++    if (ret < 0) {
++        //KLOG_WARNING(LOG_TAG, "Unknown power supply type '%s'\n", buf);
+         ret = ANDROID_POWER_SUPPLY_TYPE_UNKNOWN;
++    }
+ 
+     return ret;
+ }
+@@ -268,35 +261,6 @@ bool BatteryMonitor::update(void) {
+     if (readFromFile(mHealthdConfig->batteryTechnologyPath, buf, SIZE) > 0)
+         props.batteryTechnology = String8(buf);
+ 
+-    props.dockBatterySupported = mHealthdConfig->dockBatterySupported;
+-    if (props.dockBatterySupported) {
+-        if (!mHealthdConfig->dockBatteryPresentPath.isEmpty())
+-            props.dockBatteryPresent = getBooleanField(mHealthdConfig->dockBatteryPresentPath);
+-        else
+-            props.dockBatteryPresent = mDockBatteryDevicePresent;
+-
+-        props.dockBatteryLevel = mBatteryFixedCapacity ?
+-            mBatteryFixedCapacity :
+-            getIntField(mHealthdConfig->dockBatteryCapacityPath);
+-        props.dockBatteryVoltage = getIntField(mHealthdConfig->dockBatteryVoltagePath) / 1000;
+-
+-        props.dockBatteryTemperature = mBatteryFixedTemperature ?
+-            mBatteryFixedTemperature :
+-            getIntField(mHealthdConfig->dockBatteryTemperaturePath);
+-
+-        if (readFromFile(mHealthdConfig->dockBatteryStatusPath, buf, SIZE) > 0)
+-            props.dockBatteryStatus = getBatteryStatus(buf);
+-
+-        if (readFromFile(mHealthdConfig->dockBatteryHealthPath, buf, SIZE) > 0)
+-            props.dockBatteryHealth = getBatteryHealth(buf);
+-
+-        if (readFromFile(mHealthdConfig->dockBatteryTechnologyPath, buf, SIZE) > 0)
+-            props.dockBatteryTechnology = String8(buf);
+-    }
+-
+-    unsigned int i;
+-    double MaxPower = 0;
+-
+     // reinitialize the mChargerNames vector everytime there is an update
+     String8 path;
+     DIR* dir = opendir(POWER_SUPPLY_SYSFS_PATH);
+@@ -317,7 +281,6 @@ bool BatteryMonitor::update(void) {
+             path.appendFormat("%s/%s/type", POWER_SUPPLY_SYSFS_PATH, name);
+             switch(readPowerSupplyType(path)) {
+             case ANDROID_POWER_SUPPLY_TYPE_BATTERY:
+-            case ANDROID_POWER_SUPPLY_TYPE_DOCK_BATTERY:
+                 break;
+             default:
+                 path.clear();
+@@ -339,36 +302,18 @@ bool BatteryMonitor::update(void) {
+                             case ANDROID_POWER_SUPPLY_TYPE_WIRELESS:
+                                 props.chargerWirelessOnline = true;
+                                 break;
+-                            case ANDROID_POWER_SUPPLY_TYPE_DOCK_AC:
+-                                if (mHealthdConfig->dockBatterySupported) {
+-                                    props.chargerDockAcOnline = true;
+-                                }
+                             default:
+                                 KLOG_WARNING(LOG_TAG, "%s: Unknown power supply type\n",
+                                              name);
+                             }
+-
+-                            //If its online, read the voltage and current for power
+                             path.clear();
+                             path.appendFormat("%s/%s/current_max", POWER_SUPPLY_SYSFS_PATH,
+-                                            name);
+-                            int ChargingCurrent =
+-                                          (access(path.string(), R_OK) == 0) ? getIntField(path) : 0;
+-
+-                            path.clear();
+-                            path.appendFormat("%s/%s/voltage_max", POWER_SUPPLY_SYSFS_PATH,
+-                                            name);
+-
+-                            int ChargingVoltage =
+-                              (access(path.string(), R_OK) == 0) ? getIntField(path) :
+-                              DEFAULT_VBUS_VOLTAGE;
+-
+-                            double power = ((double)ChargingCurrent / MILLION) *
+-                                    ((double)ChargingVoltage / MILLION);
+-                            if (MaxPower < power) {
+-                                props.maxChargingCurrent = ChargingCurrent;
+-                                props.maxChargingVoltage = ChargingVoltage;
+-                                MaxPower = power;
++                                              name);
++                            if (access(path.string(), R_OK) == 0) {
++                                int maxChargingCurrent = getIntField(path);
++                                if (props.maxChargingCurrent < maxChargingCurrent) {
++                                    props.maxChargingCurrent = maxChargingCurrent;
++                                }
+                             }
+                         }
+                     }
+@@ -383,12 +328,10 @@ bool BatteryMonitor::update(void) {
+ 
+     if (logthis) {
+         char dmesgline[256];
+-        char dmesglinedock[256];
+         size_t len;
+-
+         if (props.batteryPresent) {
+             snprintf(dmesgline, sizeof(dmesgline),
+-                 "battery [l=%d v=%d t=%s%d.%d h=%d st=%d]",
++                 "battery l=%d v=%d t=%s%d.%d h=%d st=%d",
+                  props.batteryLevel, props.batteryVoltage,
+                  props.batteryTemperature < 0 ? "-" : "",
+                  abs(props.batteryTemperature / 10),
+@@ -422,38 +365,11 @@ bool BatteryMonitor::update(void) {
+                  props.chargerWirelessOnline ? "w" : "");
+ 
+         KLOG_WARNING(LOG_TAG, "%s\n", dmesgline);
+-
+-        if (props.dockBatteryPresent) {
+-            snprintf(dmesglinedock, sizeof(dmesglinedock),
+-                 "dock-battery [l=%d v=%d t=%s%d.%d h=%d st=%d]",
+-                 props.dockBatteryLevel, props.dockBatteryVoltage,
+-                 props.dockBatteryTemperature < 0 ? "-" : "",
+-                 abs(props.dockBatteryTemperature / 10),
+-                 abs(props.dockBatteryTemperature % 10), props.dockBatteryHealth,
+-                 props.dockBatteryStatus);
+-
+-            if (!mHealthdConfig->dockBatteryCurrentNowPath.isEmpty()) {
+-                int c = getIntField(mHealthdConfig->dockBatteryCurrentNowPath);
+-                char b[20];
+-
+-                snprintf(b, sizeof(b), " c=%d", c / 1000);
+-                strlcat(dmesglinedock, b, sizeof(dmesglinedock));
+-            }
+-        } else {
+-            snprintf(dmesglinedock, sizeof(dmesglinedock),
+-                 "dock-battery none");
+-        }
+-
+-        KLOG_WARNING(LOG_TAG, "%s %s chg=%s%s%s%s\n", dmesgline, dmesglinedock,
+-                     props.chargerAcOnline ? "a" : "",
+-                     props.chargerUsbOnline ? "u" : "",
+-                     props.chargerWirelessOnline ? "w" : "",
+-                     props.chargerDockAcOnline ? "d" : "");
+     }
+ 
+     healthd_mode_ops->battery_update(&props);
+     return props.chargerAcOnline | props.chargerUsbOnline |
+-            props.chargerWirelessOnline | props.chargerDockAcOnline;
++            props.chargerWirelessOnline;
+ }
+ 
+ int BatteryMonitor::getChargeStatus() {
+@@ -530,65 +446,6 @@ status_t BatteryMonitor::getProperty(int id, struct BatteryProperty *val) {
+ 
+ status_t BatteryMonitor::getDockProperty(int id, struct BatteryProperty *val) {
+     status_t ret = BAD_VALUE;
+-    if (!mHealthdConfig->dockBatterySupported) {
+-        return ret;
+-    }
+-
+-    val->valueInt64 = LONG_MIN;
+-
+-    switch(id) {
+-    case BATTERY_PROP_CHARGE_COUNTER:
+-        if (!mHealthdConfig->dockBatteryChargeCounterPath.isEmpty()) {
+-            val->valueInt64 =
+-                getIntField(mHealthdConfig->dockBatteryChargeCounterPath);
+-            ret = NO_ERROR;
+-        } else {
+-            ret = NAME_NOT_FOUND;
+-        }
+-        break;
+-
+-    case BATTERY_PROP_CURRENT_NOW:
+-        if (!mHealthdConfig->dockBatteryCurrentNowPath.isEmpty()) {
+-            val->valueInt64 =
+-                getIntField(mHealthdConfig->dockBatteryCurrentNowPath);
+-            ret = NO_ERROR;
+-        } else {
+-            ret = NAME_NOT_FOUND;
+-        }
+-        break;
+-
+-    case BATTERY_PROP_CURRENT_AVG:
+-        if (!mHealthdConfig->dockBatteryCurrentAvgPath.isEmpty()) {
+-            val->valueInt64 =
+-                getIntField(mHealthdConfig->dockBatteryCurrentAvgPath);
+-            ret = NO_ERROR;
+-        } else {
+-            ret = NAME_NOT_FOUND;
+-        }
+-        break;
+-
+-    case BATTERY_PROP_CAPACITY:
+-        if (!mHealthdConfig->dockBatteryCapacityPath.isEmpty()) {
+-            val->valueInt64 =
+-                getIntField(mHealthdConfig->dockBatteryCapacityPath);
+-            ret = NO_ERROR;
+-        } else {
+-            ret = NAME_NOT_FOUND;
+-        }
+-        break;
+-
+-    case BATTERY_PROP_ENERGY_COUNTER:
+-        if (mHealthdConfig->dockEnergyCounter) {
+-            ret = mHealthdConfig->dockEnergyCounter(&val->valueInt64);
+-        } else {
+-            ret = NAME_NOT_FOUND;
+-        }
+-        break;
+-
+-    default:
+-        break;
+-    }
+-
+     return ret;
+ }
+ 
+@@ -596,10 +453,10 @@ void BatteryMonitor::dumpState(int fd) {
+     int v;
+     char vs[128];
+ 
+-    snprintf(vs, sizeof(vs), "ac: %d usb: %d wireless: %d dock-ac: %d current_max: %d voltage_max: %d\n",
++    snprintf(vs, sizeof(vs), "ac: %d usb: %d wireless: %d current_max: %d voltage_max: %d\n",
+              props.chargerAcOnline, props.chargerUsbOnline,
+-             props.chargerWirelessOnline, props.chargerDockAcOnline,
+-             props.maxChargingCurrent, props.maxChargingVoltage);
++             props.chargerWirelessOnline, props.maxChargingCurrent,
++             props.maxChargingVoltage);
+     write(fd, vs, strlen(vs));
+     snprintf(vs, sizeof(vs), "status: %d health: %d present: %d\n",
+              props.batteryStatus, props.batteryHealth, props.batteryPresent);
+@@ -641,34 +498,6 @@ void BatteryMonitor::dumpState(int fd) {
+         snprintf(vs, sizeof(vs), "Full charge: %d\n", props.batteryFullCharge);
+         write(fd, vs, strlen(vs));
+     }
+-
+-    if (mHealthdConfig->dockBatterySupported) {
+-        snprintf(vs, sizeof(vs), "dock-status: %d dock-health: %d dock-present: %d\n",
+-                 props.dockBatteryStatus, props.dockBatteryHealth, props.dockBatteryPresent);
+-        write(fd, vs, strlen(vs));
+-        snprintf(vs, sizeof(vs), "dock-level: %d dock-voltage: %d dock-temp: %d\n",
+-                 props.dockBatteryLevel, props.dockBatteryVoltage,
+-                 props.dockBatteryTemperature);
+-        write(fd, vs, strlen(vs));
+-
+-        if (!mHealthdConfig->dockBatteryCurrentNowPath.isEmpty()) {
+-            v = getIntField(mHealthdConfig->dockBatteryCurrentNowPath);
+-            snprintf(vs, sizeof(vs), "dock-current now: %d\n", v);
+-            write(fd, vs, strlen(vs));
+-        }
+-
+-        if (!mHealthdConfig->dockBatteryCurrentAvgPath.isEmpty()) {
+-            v = getIntField(mHealthdConfig->dockBatteryCurrentAvgPath);
+-            snprintf(vs, sizeof(vs), "dock-current avg: %d\n", v);
+-            write(fd, vs, strlen(vs));
+-        }
+-
+-        if (!mHealthdConfig->dockBatteryChargeCounterPath.isEmpty()) {
+-            v = getIntField(mHealthdConfig->dockBatteryChargeCounterPath);
+-            snprintf(vs, sizeof(vs), "dock-charge counter: %d\n", v);
+-            write(fd, vs, strlen(vs));
+-        }
+-    }
+ }
+ 
+ void BatteryMonitor::init(struct healthd_config *hc) {
+@@ -695,7 +524,6 @@ void BatteryMonitor::init(struct healthd_config *hc) {
+             case ANDROID_POWER_SUPPLY_TYPE_AC:
+             case ANDROID_POWER_SUPPLY_TYPE_USB:
+             case ANDROID_POWER_SUPPLY_TYPE_WIRELESS:
+-            case ANDROID_POWER_SUPPLY_TYPE_DOCK_AC:
+                 path.clear();
+                 path.appendFormat("%s/%s/online", POWER_SUPPLY_SYSFS_PATH, name);
+                 if (access(path.string(), R_OK) == 0)
+@@ -817,107 +645,6 @@ void BatteryMonitor::init(struct healthd_config *hc) {
+ 
+                 break;
+ 
+-            case ANDROID_POWER_SUPPLY_TYPE_DOCK_BATTERY:
+-                if (mHealthdConfig->dockBatterySupported) {
+-                    mDockBatteryDevicePresent = true;
+-
+-                    if (mHealthdConfig->dockBatteryStatusPath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/status", POWER_SUPPLY_SYSFS_PATH,
+-                                          name);
+-                        if (access(path, R_OK) == 0)
+-                            mHealthdConfig->dockBatteryStatusPath = path;
+-                    }
+-
+-                    if (mHealthdConfig->dockBatteryHealthPath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/health", POWER_SUPPLY_SYSFS_PATH,
+-                                          name);
+-                        if (access(path, R_OK) == 0)
+-                            mHealthdConfig->dockBatteryHealthPath = path;
+-                    }
+-
+-                    if (mHealthdConfig->dockBatteryPresentPath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/present", POWER_SUPPLY_SYSFS_PATH,
+-                                          name);
+-                        if (access(path, R_OK) == 0)
+-                            mHealthdConfig->dockBatteryPresentPath = path;
+-                    }
+-
+-                    if (mHealthdConfig->dockBatteryCapacityPath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/capacity", POWER_SUPPLY_SYSFS_PATH,
+-                                          name);
+-                        if (access(path, R_OK) == 0)
+-                            mHealthdConfig->dockBatteryCapacityPath = path;
+-                    }
+-
+-                    if (mHealthdConfig->dockBatteryVoltagePath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/voltage_now",
+-                                          POWER_SUPPLY_SYSFS_PATH, name);
+-                        if (access(path, R_OK) == 0) {
+-                            mHealthdConfig->dockBatteryVoltagePath = path;
+-                        } else {
+-                            path.clear();
+-                            path.appendFormat("%s/%s/batt_vol",
+-                                              POWER_SUPPLY_SYSFS_PATH, name);
+-                            if (access(path, R_OK) == 0)
+-                                mHealthdConfig->dockBatteryVoltagePath = path;
+-                        }
+-                    }
+-
+-                    if (mHealthdConfig->dockBatteryCurrentNowPath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/current_now",
+-                                          POWER_SUPPLY_SYSFS_PATH, name);
+-                        if (access(path, R_OK) == 0)
+-                            mHealthdConfig->dockBatteryCurrentNowPath = path;
+-                    }
+-
+-                    if (mHealthdConfig->dockBatteryCurrentAvgPath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/current_avg",
+-                                          POWER_SUPPLY_SYSFS_PATH, name);
+-                        if (access(path, R_OK) == 0)
+-                            mHealthdConfig->dockBatteryCurrentAvgPath = path;
+-                    }
+-
+-                    if (mHealthdConfig->dockBatteryChargeCounterPath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/charge_counter",
+-                                          POWER_SUPPLY_SYSFS_PATH, name);
+-                        if (access(path, R_OK) == 0)
+-                            mHealthdConfig->dockBatteryChargeCounterPath = path;
+-                    }
+-
+-                    if (mHealthdConfig->dockBatteryTemperaturePath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/temp", POWER_SUPPLY_SYSFS_PATH,
+-                                          name);
+-                        if (access(path, R_OK) == 0) {
+-                            mHealthdConfig->dockBatteryTemperaturePath = path;
+-                        } else {
+-                            path.clear();
+-                            path.appendFormat("%s/%s/batt_temp",
+-                                              POWER_SUPPLY_SYSFS_PATH, name);
+-                            if (access(path, R_OK) == 0)
+-                                mHealthdConfig->dockBatteryTemperaturePath = path;
+-                        }
+-                    }
+-
+-                    if (mHealthdConfig->dockBatteryTechnologyPath.isEmpty()) {
+-                        path.clear();
+-                        path.appendFormat("%s/%s/technology",
+-                                          POWER_SUPPLY_SYSFS_PATH, name);
+-                        if (access(path, R_OK) == 0)
+-                            mHealthdConfig->dockBatteryTechnologyPath = path;
+-                    }
+-                }
+-
+-                break;
+-
+             case ANDROID_POWER_SUPPLY_TYPE_UNKNOWN:
+                 break;
+             }
+@@ -927,7 +654,7 @@ void BatteryMonitor::init(struct healthd_config *hc) {
+ 
+     // Typically the case for devices which do not have a battery and
+     // and are always plugged into AC mains.
+-    if (!mBatteryDevicePresent && !mDockBatteryDevicePresent) {
++    if (!mBatteryDevicePresent) {
+         KLOG_WARNING(LOG_TAG, "No battery devices found\n");
+         hc->periodic_chores_interval_fast = -1;
+         hc->periodic_chores_interval_slow = -1;
+@@ -955,23 +682,6 @@ void BatteryMonitor::init(struct healthd_config *hc) {
+             KLOG_WARNING(LOG_TAG, "BatteryFullChargePath not found\n");
+         if (mHealthdConfig->batteryCycleCountPath.isEmpty())
+             KLOG_WARNING(LOG_TAG, "BatteryCycleCountPath not found\n");
+-
+-        if (mHealthdConfig->dockBatterySupported) {
+-            if (mHealthdConfig->dockBatteryStatusPath.isEmpty())
+-                KLOG_WARNING(LOG_TAG, "DockBatteryStatusPath not found\n");
+-            if (mHealthdConfig->dockBatteryHealthPath.isEmpty())
+-                KLOG_WARNING(LOG_TAG, "DockBatteryHealthPath not found\n");
+-            if (mHealthdConfig->dockBatteryPresentPath.isEmpty())
+-                KLOG_WARNING(LOG_TAG, "DockBatteryPresentPath not found\n");
+-            if (mHealthdConfig->dockBatteryCapacityPath.isEmpty())
+-                KLOG_WARNING(LOG_TAG, "DockBatteryCapacityPath not found\n");
+-            if (mHealthdConfig->dockBatteryVoltagePath.isEmpty())
+-                KLOG_WARNING(LOG_TAG, "DockBatteryVoltagePath not found\n");
+-            if (mHealthdConfig->dockBatteryTemperaturePath.isEmpty())
+-                KLOG_WARNING(LOG_TAG, "DockBatteryTemperaturePath not found\n");
+-            if (mHealthdConfig->dockBatteryTechnologyPath.isEmpty())
+-                KLOG_WARNING(LOG_TAG, "DockBatteryTechnologyPath not found\n");
+-        }
+     }
+ 
+     if (property_get("ro.boot.fake_battery", pval, NULL) > 0
+diff --git a/healthd/BatteryPropertiesRegistrar.cpp b/healthd/BatteryPropertiesRegistrar.cpp
+index 8d5c301..3a644d3 100644
+--- a/healthd/BatteryPropertiesRegistrar.cpp
++++ b/healthd/BatteryPropertiesRegistrar.cpp
+@@ -1,6 +1,5 @@
+ /*
+  * Copyright (C) 2013 The Android Open Source Project
+- * Copyright (C) 2015 The CyanogenMod Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+diff --git a/healthd/BatteryPropertiesRegistrar.h b/healthd/BatteryPropertiesRegistrar.h
+index cbff509..239063f 100644
+--- a/healthd/BatteryPropertiesRegistrar.h
++++ b/healthd/BatteryPropertiesRegistrar.h
+@@ -1,6 +1,5 @@
+ /*
+  * Copyright (C) 2013 The Android Open Source Project
+- * Copyright (C) 2015 The CyanogenMod Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+diff --git a/healthd/healthd.cpp b/healthd/healthd.cpp
+index 88cb7e3..baadb5d 100644
+--- a/healthd/healthd.cpp
++++ b/healthd/healthd.cpp
+@@ -1,6 +1,5 @@
+ /*
+  * Copyright (C) 2013 The Android Open Source Project
+- * Copyright (C) 2015 The CyanogenMod Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+@@ -36,23 +35,16 @@
+ 
+ using namespace android;
+ 
+-// Periodic chores intervals in seconds
+ #ifndef BOARD_PERIODIC_CHORES_INTERVAL_FAST
+- #ifdef QCOM_HARDWARE
+-  #define DEFAULT_PERIODIC_CHORES_INTERVAL_FAST (60 * 10)
+- #else
+-  #define DEFAULT_PERIODIC_CHORES_INTERVAL_FAST (60 * 10)
+- #endif
++  // Periodic chores fast interval in seconds
++  #define DEFAULT_PERIODIC_CHORES_INTERVAL_FAST (60 * 1)
+ #else
+   #define DEFAULT_PERIODIC_CHORES_INTERVAL_FAST (BOARD_PERIODIC_CHORES_INTERVAL_FAST)
+ #endif
+ 
+ #ifndef BOARD_PERIODIC_CHORES_INTERVAL_SLOW
+- #ifdef QCOM_HARDWARE
+-  #define DEFAULT_PERIODIC_CHORES_INTERVAL_SLOW -1
+- #else
++  // Periodic chores fast interval in seconds
+   #define DEFAULT_PERIODIC_CHORES_INTERVAL_SLOW (60 * 10)
+- #endif
+ #else
+   #define DEFAULT_PERIODIC_CHORES_INTERVAL_SLOW (BOARD_PERIODIC_CHORES_INTERVAL_SLOW)
+ #endif
+@@ -75,18 +67,6 @@ static struct healthd_config healthd_config = {
+     .energyCounter = NULL,
+     .boot_min_cap = 0,
+     .screen_on = NULL,
+-    .dockBatterySupported = false,
+-    .dockBatteryStatusPath = String8(String8::kEmptyString),
+-    .dockBatteryHealthPath = String8(String8::kEmptyString),
+-    .dockBatteryPresentPath = String8(String8::kEmptyString),
+-    .dockBatteryCapacityPath = String8(String8::kEmptyString),
+-    .dockBatteryVoltagePath = String8(String8::kEmptyString),
+-    .dockBatteryTemperaturePath = String8(String8::kEmptyString),
+-    .dockBatteryTechnologyPath = String8(String8::kEmptyString),
+-    .dockBatteryCurrentNowPath = String8(String8::kEmptyString),
+-    .dockBatteryCurrentAvgPath = String8(String8::kEmptyString),
+-    .dockBatteryChargeCounterPath = String8(String8::kEmptyString),
+-    .dockEnergyCounter = NULL,
+ };
+ 
+ static int eventct;
+@@ -314,18 +294,12 @@ static void wakealarm_init(void) {
+ }
+ 
+ static void healthd_mainloop(void) {
+-    int nevents = 0;
+     while (1) {
+         struct epoll_event events[eventct];
++        int nevents;
+         int timeout = awake_poll_interval;
+         int mode_timeout;
+ 
+-        /* Don't wait for first timer timeout to run periodic chores */
+-        if (!nevents)
+-            periodic_chores();
+-
+-        healthd_mode_ops->heartbeat();
+-
+         mode_timeout = healthd_mode_ops->preparetowait();
+         if (timeout < 0 || (mode_timeout > 0 && mode_timeout < timeout))
+             timeout = mode_timeout;
+@@ -341,6 +315,11 @@ static void healthd_mainloop(void) {
+             if (events[n].data.ptr)
+                 (*(void (*)(int))events[n].data.ptr)(events[n].events);
+         }
++
++        if (!nevents)
++            periodic_chores();
++
++        healthd_mode_ops->heartbeat();
+     }
+ 
+     return;
+@@ -397,9 +376,6 @@ int main(int argc, char **argv) {
+         exit(2);
+     }
+ 
+-    periodic_chores();
+-    healthd_mode_ops->heartbeat();
+-
+     healthd_mainloop();
+     KLOG_ERROR("Main loop terminated, exiting\n");
+     return 3;
+diff --git a/healthd/healthd_board_default.cpp b/healthd/healthd_board_default.cpp
+index fdb970b..a272513 100644
+--- a/healthd/healthd_board_default.cpp
++++ b/healthd/healthd_board_default.cpp
+@@ -27,23 +27,3 @@ int healthd_board_battery_update(struct android::BatteryProperties*)
+     // return 0 to log periodic polled battery status to kernel log
+     return 1;
+ }
+-
+-void healthd_board_mode_charger_draw_battery(struct android::BatteryProperties*)
+-{
+-
+-}
+-
+-void healthd_board_mode_charger_battery_update(struct android::BatteryProperties*)
+-{
+-
+-}
+-
+-void healthd_board_mode_charger_set_backlight(bool)
+-{
+-
+-}
+-
+-void healthd_board_mode_charger_init()
+-{
+-
+-}
+diff --git a/healthd/healthd_mode_charger.cpp b/healthd/healthd_mode_charger.cpp
+index 670c907..c091b21 100644
+--- a/healthd/healthd_mode_charger.cpp
++++ b/healthd/healthd_mode_charger.cpp
+@@ -30,9 +30,6 @@
+ #include <time.h>
+ #include <unistd.h>
+ 
+-#include <android-base/file.h>
+-#include <android-base/stringprintf.h>
+-
+ #include <sys/socket.h>
+ #include <linux/netlink.h>
+ 
+@@ -47,14 +44,10 @@
+ #include <suspend/autosuspend.h>
+ #endif
+ 
+-#include "animation.h"
+-#include "AnimationParser.h"
+ #include "minui/minui.h"
+ 
+ #include <healthd/healthd.h>
+ 
+-using namespace android;
+-
+ char *locale;
+ 
+ #ifndef max
+@@ -72,37 +65,46 @@ char *locale;
+ 
+ #define BATTERY_UNKNOWN_TIME    (2 * MSEC_PER_SEC)
+ #define POWER_ON_KEY_TIME       (2 * MSEC_PER_SEC)
+-#define UNPLUGGED_SHUTDOWN_TIME (5 * MSEC_PER_SEC)
++#define UNPLUGGED_SHUTDOWN_TIME (10 * MSEC_PER_SEC)
++
++#define BATTERY_FULL_THRESH     95
+ 
+ #define LAST_KMSG_PATH          "/proc/last_kmsg"
+ #define LAST_KMSG_PSTORE_PATH   "/sys/fs/pstore/console-ramoops"
+ #define LAST_KMSG_MAX_SZ        (32 * 1024)
+-#ifndef RED_LED_PATH
+-#define RED_LED_PATH            "/sys/class/leds/red/brightness"
+-#endif
+-#ifndef GREEN_LED_PATH
+-#define GREEN_LED_PATH          "/sys/class/leds/green/brightness"
+-#endif
+-#ifndef BLUE_LED_PATH
+-#define BLUE_LED_PATH           "/sys/class/leds/blue/brightness"
+-#endif
+-
+-#ifndef BLINK_PATH
+-#define BLINK_PATH              "/sys/class/leds/red/device/blink"
+-#endif
+ 
+ #define LOGE(x...) do { KLOG_ERROR("charger", x); } while (0)
+ #define LOGW(x...) do { KLOG_WARNING("charger", x); } while (0)
+ #define LOGV(x...) do { KLOG_DEBUG("charger", x); } while (0)
+ 
+-static constexpr const char* animation_desc_path = "/res/values/charger/animation.txt";
+-
+ struct key_state {
+     bool pending;
+     bool down;
+     int64_t timestamp;
+ };
+ 
++struct frame {
++    int disp_time;
++    int min_capacity;
++    bool level_only;
++
++    GRSurface* surface;
++};
++
++struct animation {
++    bool run;
++
++    struct frame *frames;
++    int cur_frame;
++    int num_frames;
++
++    int cur_cycle;
++    int num_cycles;
++
++    /* current capacity being animated */
++    int capacity;
++};
++
+ struct charger {
+     bool have_battery_state;
+     bool charger_connected;
+@@ -117,83 +119,66 @@ struct charger {
+     int boot_min_cap;
+ };
+ 
+-static const struct animation BASE_ANIMATION = {
+-    .text_clock = {
+-        .pos_x = 0,
+-        .pos_y = 0,
+-
+-        .color_r = 255,
+-        .color_g = 255,
+-        .color_b = 255,
+-        .color_a = 255,
+-
+-        .font = nullptr,
+-    },
+-    .text_percent = {
+-        .pos_x = 0,
+-        .pos_y = 0,
+-
+-        .color_r = 255,
+-        .color_g = 255,
+-        .color_b = 255,
+-        .color_a = 255,
+-    },
+-
+-    .run = false,
+-
+-    .frames = nullptr,
+-    .cur_frame = 0,
+-    .num_frames = 0,
+-    .first_frame_repeats = 2,
+-
+-    .cur_cycle = 0,
+-    .num_cycles = 3,
+-
+-    .cur_level = 0,
+-    .cur_status = BATTERY_STATUS_UNKNOWN,
+-};
+-
+-
+-static struct animation::frame default_animation_frames[] = {
++static struct frame batt_anim_frames[] = {
+     {
+         .disp_time = 750,
+-        .min_level = 0,
+-        .max_level = 19,
++        .min_capacity = 0,
++        .level_only = false,
+         .surface = NULL,
+     },
+     {
+         .disp_time = 750,
+-        .min_level = 0,
+-        .max_level = 39,
++        .min_capacity = 20,
++        .level_only = false,
+         .surface = NULL,
+     },
+     {
+         .disp_time = 750,
+-        .min_level = 0,
+-        .max_level = 59,
++        .min_capacity = 40,
++        .level_only = false,
+         .surface = NULL,
+     },
+     {
+         .disp_time = 750,
+-        .min_level = 0,
+-        .max_level = 79,
++        .min_capacity = 60,
++        .level_only = false,
+         .surface = NULL,
+     },
+     {
+         .disp_time = 750,
+-        .min_level = 80,
+-        .max_level = 95,
++        .min_capacity = 80,
++        .level_only = true,
+         .surface = NULL,
+     },
+     {
+         .disp_time = 750,
+-        .min_level = 0,
+-        .max_level = 100,
++        .min_capacity = BATTERY_FULL_THRESH,
++        .level_only = false,
+         .surface = NULL,
+     },
+ };
+ 
+-static struct animation battery_animation = BASE_ANIMATION;
++static struct animation battery_animation = {
++    .run = false,
++    .frames = batt_anim_frames,
++    .cur_frame = 0,
++    .num_frames = ARRAY_SIZE(batt_anim_frames),
++    .cur_cycle = 0,
++    .num_cycles = 3,
++    .capacity = 0,
++};
++
++#ifdef HEALTHD_ENABLE_TRICOLOR_LED
++
++#ifndef RED_LED_PATH
++#define RED_LED_PATH     "/sys/class/leds/red/brightness"
++#endif
++#ifndef GREEN_LED_PATH
++#define GREEN_LED_PATH   "/sys/class/leds/green/brightness"
++#endif
++#ifndef BLUE_LED_PATH
++#define BLUE_LED_PATH    "/sys/class/leds/blue/brightness"
++#endif
+ 
+ enum {
+     RED_LED = 0x01 << 0,
+@@ -201,7 +186,6 @@ enum {
+     BLUE_LED = 0x01 << 2,
+ };
+ 
+-#ifndef NO_CHARGER_LED
+ struct led_ctl {
+     int color;
+     const char *path;
+@@ -231,27 +215,7 @@ static int char_width;
+ static int char_height;
+ static bool minui_inited;
+ 
+-#ifndef NO_CHARGER_LED
+-static int set_blink(int val)
+-{
+-    int fd;
+-    char buffer[10];
+-
+-    fd = open(BLINK_PATH, O_RDWR);
+-    if (fd < 0) {
+-        LOGE("Could not open blink file\n");
+-        return -1;
+-    }
+-    snprintf(buffer, sizeof(buffer), "%d\n", val);
+-    if (write(fd, buffer, strlen(buffer)) < 0) {
+-        LOGE("Could not write to blink file\n");
+-        close(fd);
+-        return -1;
+-    }
+-    close(fd);
+-    return 0;
+-}
+-
++#ifdef HEALTHD_ENABLE_TRICOLOR_LED
+ static int set_tricolor_led(int on, int color)
+ {
+     int fd, i;
+@@ -271,8 +235,7 @@ static int set_tricolor_led(int on, int color)
+ 
+             if (write(fd, buffer, strlen(buffer)) < 0)
+                 LOGE("Could not write to led node\n");
+-            if (fd >= 0)
+-                close(fd);
++            close(fd);
+         }
+     }
+ 
+@@ -296,13 +259,58 @@ static int set_battery_soc_leds(int soc)
+         LOGV("soc = %d, set led color 0x%x\n", soc, soc_leds[i].color);
+     }
+ 
+-    /* This is required to commit the changes to hardware */
+-    set_blink(0);
+-
+     return 0;
+ }
+ #endif
+ 
++#ifdef HEALTHD_FORCE_BACKLIGHT_CONTROL
++
++#ifndef HEALTHD_BACKLIGHT_ON_LEVEL
++#define HEALTHD_BACKLIGHT_ON_LEVEL  150
++#endif
++
++static int set_backlight(bool on)
++{
++    int fd;
++    char buffer[10];
++
++    if (access(TW_BRIGHTNESS_PATH, R_OK | W_OK) != 0) {
++        LOGW("Backlight control not support\n");
++        return 0;
++    }
++
++    memset(buffer, '\0', sizeof(buffer));
++    fd = open(TW_BRIGHTNESS_PATH, O_RDWR);
++    if (fd < 0) {
++        LOGE("Could not open backlight node : %s\n", strerror(errno));
++        return 0;
++    }
++    LOGV("Enabling backlight\n");
++    snprintf(buffer, sizeof(buffer), "%d\n", on ? HEALTHD_BACKLIGHT_ON_LEVEL : 0);
++    if (write(fd, buffer,strlen(buffer)) < 0) {
++        LOGE("Could not write to backlight node : %s\n", strerror(errno));
++    }
++    close(fd);
++
++#ifdef TW_SECONDARY_BRIGHTNESS_PATH
++    if (access(TW_SECONDARY_BRIGHTNESS_PATH, R_OK | W_OK) != 0) {
++        LOGW("Secondary backlight control not support\n");
++    } else {
++        fd = open(TW_SECONDARY_BRIGHTNESS_PATH, O_RDWR);
++        if (fd < 0) {
++            LOGW("Could not open secondary backlight node : %s\n", strerror(errno));
++        } else {
++        LOGV("Enabling secondary backlight\n");
++        if (write(fd, buffer,strlen(buffer)) < 0)
++            LOGE("Could not write to secondary backlight node : %s\n", strerror(errno));
++        }
++        close(fd);
++    }
++#endif // TW_SECONDARY_BRIGHTNESS_PATH
++    return 0;
++}
++#endif // HEALTHD_FORCE_BACKLIGHT_CONTROL
++
+ /* current time in milliseconds */
+ static int64_t curr_time_ms(void)
+ {
+@@ -385,100 +393,24 @@ static int request_suspend(bool /*enable*/)
+ 
+ static int draw_text(const char *str, int x, int y)
+ {
+-    int str_len_px = gr_measure(gr_sys_font(), str);
++    int str_len_px = gr_measure(str);
+ 
+     if (x < 0)
+         x = (gr_fb_width() - str_len_px) / 2;
+     if (y < 0)
+         y = (gr_fb_height() - char_height) / 2;
+-    gr_text(gr_sys_font(), x, y, str, 0);
++    gr_text(x, y, str, 0);
+ 
+     return y + char_height;
+ }
+ 
+-static void android_green(void)
+-{
+-    gr_color(0xa4, 0xc6, 0x39, 255);
+-}
+-
+-// Negative x or y coordinates position the text away from the opposite edge that positive ones do.
+-void determine_xy(const animation::text_field& field, const int length, int* x, int* y)
+-{
+-    *x = field.pos_x;
+-    *y = field.pos_y;
+-
+-    int str_len_px = length * field.font->char_width;
+-    if (field.pos_x == CENTER_VAL) {
+-        *x = (gr_fb_width() - str_len_px) / 2;
+-    } else if (field.pos_x >= 0) {
+-        *x = field.pos_x;
+-    } else {  // position from max edge
+-        *x = gr_fb_width() + field.pos_x - str_len_px;
+-    }
+-
+-    if (field.pos_y == CENTER_VAL) {
+-        *y = (gr_fb_height() - field.font->char_height) / 2;
+-    } else if (field.pos_y >= 0) {
+-        *y = field.pos_y;
+-    } else {  // position from max edge
+-        *y = gr_fb_height() + field.pos_y - field.font->char_height;
+-    }
+-}
+-
+-static void draw_clock(const animation& anim)
+-{
+-    static constexpr char CLOCK_FORMAT[] = "%H:%M";
+-    static constexpr int CLOCK_LENGTH = 6;
+-
+-    const animation::text_field& field = anim.text_clock;
+-
+-    if (field.font == nullptr || field.font->char_width == 0 || field.font->char_height == 0) return;
+-
+-    time_t rawtime;
+-    time(&rawtime);
+-    struct tm* time_info = localtime(&rawtime);
+-
+-    char clock_str[CLOCK_LENGTH];
+-    size_t length = strftime(clock_str, CLOCK_LENGTH, CLOCK_FORMAT, time_info);
+-    if (length != CLOCK_LENGTH - 1) {
+-        LOGE("Could not format time\n");
+-        return;
+-    }
+-
+-    int x, y;
+-    determine_xy(field, length, &x, &y);
+-
+-    LOGV("drawing clock %s %d %d\n", clock_str, x, y);
+-    gr_color(field.color_r, field.color_g, field.color_b, field.color_a);
+-    gr_text(field.font, x, y, clock_str, false);
+-}
+-
+-static void draw_percent(const animation& anim)
++static void android_white(void)
+ {
+-    int cur_level = anim.cur_level;
+-    if (anim.cur_status == BATTERY_STATUS_FULL) {
+-        cur_level = 100;
+-    }
+-
+-    if (cur_level <= 0) return;
+-
+-    const animation::text_field& field = anim.text_percent;
+-    if (field.font == nullptr || field.font->char_width == 0 || field.font->char_height == 0) {
+-        return;
+-    }
+-
+-    std::string str = base::StringPrintf("%d%%", cur_level);
+-
+-    int x, y;
+-    determine_xy(field, str.size(), &x, &y);
+-
+-    LOGV("drawing percent %s %d %d\n", str.c_str(), x, y);
+-    gr_color(field.color_r, field.color_g, field.color_b, field.color_a);
+-    gr_text(field.font, x, y, str.c_str(), false);
++    gr_color(255, 255, 255, 255);
+ }
+ 
+ /* returns the last y-offset of where the surface ends */
+-static int draw_surface_centered(GRSurface* surface)
++static int draw_surface_centered(struct charger* /*charger*/, GRSurface* surface)
+ {
+     int w;
+     int h;
+@@ -499,28 +431,49 @@ static void draw_unknown(struct charger *charger)
+ {
+     int y;
+     if (charger->surf_unknown) {
+-        draw_surface_centered(charger->surf_unknown);
++        draw_surface_centered(charger, charger->surf_unknown);
+     } else {
+-        android_green();
++        android_white();
+         y = draw_text("Charging!", -1, -1);
+         draw_text("?\?/100", -1, y + 25);
+     }
+ }
+ 
+-static void draw_battery(const struct charger* charger)
++static void draw_battery(struct charger *charger)
+ {
+-    const struct animation& anim = *charger->batt_anim;
+-    const struct animation::frame& frame = anim.frames[anim.cur_frame];
++    struct animation *batt_anim = charger->batt_anim;
++    struct frame *frame = &batt_anim->frames[batt_anim->cur_frame];
+ 
+-    if (anim.num_frames != 0) {
+-        draw_surface_centered(frame.surface);
++    if (batt_anim->num_frames != 0) {
++        draw_surface_centered(charger, frame->surface);
+         LOGV("drawing frame #%d min_cap=%d time=%d\n",
+-             anim.cur_frame, frame.min_level,
+-             frame.disp_time);
++             batt_anim->cur_frame, frame->min_capacity,
++             frame->disp_time);
++    }
++}
++
++#define STR_LEN    64
++static void draw_capacity(struct charger *charger)
++{
++    char cap_str[STR_LEN];
++    int x, y;
++    int str_len_px;
++    int batt_height = 0;
++    // get height of battery image to draw text below
++    struct animation *batt_anim = charger->batt_anim;
++    struct frame *frame = &batt_anim->frames[batt_anim->cur_frame];
++    if (batt_anim->num_frames != 0) {
++        // nothing else should happen actually
++        batt_height = gr_get_height(frame->surface);
+     }
+-    draw_clock(anim);
+-    draw_percent(anim);
+-    healthd_board_mode_charger_draw_battery(batt_prop);
++
++    snprintf(cap_str, (STR_LEN - 1), "%d%%", charger->batt_anim->capacity);
++    str_len_px = gr_measure(cap_str);
++    x = (gr_fb_width() - str_len_px) / 2;
++    // draw it below the battery image
++    y = (gr_fb_height() + batt_height) / 2 + char_height * 2;
++    android_white();
++    gr_text(x, y, cap_str, 0);
+ }
+ 
+ static void redraw_screen(struct charger *charger)
+@@ -530,10 +483,12 @@ static void redraw_screen(struct charger *charger)
+     clear_screen();
+ 
+     /* try to display *something* */
+-    if (batt_anim->cur_level < 0 || batt_anim->num_frames == 0)
++    if (batt_anim->capacity < 0 || batt_anim->num_frames == 0) {
+         draw_unknown(charger);
+-    else
++    } else {
+         draw_battery(charger);
++        draw_capacity(charger);
++    }
+     gr_flip();
+ }
+ 
+@@ -549,33 +504,16 @@ static void reset_animation(struct animation *anim)
+     anim->run = false;
+ }
+ 
+-static void init_status_display(struct animation* anim)
+-{
+-    int res;
+-
+-    if (!anim->text_clock.font_file.empty()) {
+-        if ((res =
+-                gr_init_font(anim->text_clock.font_file.c_str(), &anim->text_clock.font)) < 0) {
+-            LOGE("Could not load time font (%d)\n", res);
+-        }
+-    }
+-
+-    if (!anim->text_percent.font_file.empty()) {
+-        if ((res =
+-                gr_init_font(anim->text_percent.font_file.c_str(), &anim->text_percent.font)) < 0) {
+-            LOGE("Could not load percent font (%d)\n", res);
+-        }
+-    }
+-}
+-
+ static void update_screen_state(struct charger *charger, int64_t now)
+ {
+     struct animation *batt_anim = charger->batt_anim;
+     int disp_time;
+ 
+-    if (!batt_anim->run || now < charger->next_screen_transition) return;
++    if (!batt_anim->run || now < charger->next_screen_transition)
++        return;
+ 
+     if (!minui_inited) {
++
+         if (healthd_config && healthd_config->screen_on) {
+             if (!healthd_config->screen_on(batt_prop)) {
+                 LOGV("[%" PRId64 "] leave screen off\n", now);
+@@ -588,21 +526,21 @@ static void update_screen_state(struct charger *charger, int64_t now)
+         }
+ 
+         gr_init();
+-        gr_font_size(gr_sys_font(), &char_width, &char_height);
+-        init_status_display(batt_anim);
++        gr_font_size(&char_width, &char_height);
+ 
+ #ifndef CHARGER_DISABLE_INIT_BLANK
+-        healthd_board_mode_charger_set_backlight(false);
+         gr_fb_blank(true);
+ #endif
+         minui_inited = true;
+     }
+ 
+     /* animation is over, blank screen and leave */
+-    if (batt_anim->num_cycles > 0 && batt_anim->cur_cycle == batt_anim->num_cycles) {
++    if (batt_anim->cur_cycle == batt_anim->num_cycles) {
+         reset_animation(batt_anim);
+         charger->next_screen_transition = -1;
+-        healthd_board_mode_charger_set_backlight(false);
++#ifdef HEALTHD_FORCE_BACKLIGHT_CONTROL
++        set_backlight(false);
++#endif
+         gr_fb_blank(true);
+         LOGV("[%" PRId64 "] animation done\n", now);
+         if (charger->charger_connected)
+@@ -616,30 +554,29 @@ static void update_screen_state(struct charger *charger, int64_t now)
+     if (batt_anim->cur_frame == 0) {
+ 
+         LOGV("[%" PRId64 "] animation starting\n", now);
+-        if (batt_prop) {
+-            batt_anim->cur_level = batt_prop->batteryLevel;
+-            batt_anim->cur_status = batt_prop->batteryStatus;
+-            if (batt_prop->batteryLevel >= 0 && batt_anim->num_frames != 0) {
+-                /* find first frame given current battery level */
+-                for (int i = 0; i < batt_anim->num_frames; i++) {
+-                    if (batt_anim->cur_level >= batt_anim->frames[i].min_level &&
+-                        batt_anim->cur_level <= batt_anim->frames[i].max_level) {
+-                        batt_anim->cur_frame = i;
+-                        break;
+-                    }
+-                }
++        if (batt_prop && batt_prop->batteryLevel >= 0 && batt_anim->num_frames != 0) {
++            int i;
+ 
+-                // repeat the first frame first_frame_repeats times
+-                disp_time = batt_anim->frames[batt_anim->cur_frame].disp_time *
+-                    batt_anim->first_frame_repeats;
++            /* find first frame given current capacity */
++            for (i = 1; i < batt_anim->num_frames; i++) {
++                if (batt_prop->batteryLevel < batt_anim->frames[i].min_capacity)
++                    break;
+             }
++            batt_anim->cur_frame = i - 1;
++
++            /* show the first frame for twice as long */
++            disp_time = batt_anim->frames[batt_anim->cur_frame].disp_time * 2;
+         }
++        if (batt_prop)
++            batt_anim->capacity = batt_prop->batteryLevel;
+     }
+ 
+     /* unblank the screen on first cycle */
+     if (batt_anim->cur_cycle == 0) {
+         gr_fb_blank(false);
+-        healthd_board_mode_charger_set_backlight(true);
++#ifdef HEALTHD_FORCE_BACKLIGHT_CONTROL
++        set_backlight(true);
++#endif
+     }
+ 
+     /* draw the new frame (@ cur_frame) */
+@@ -648,8 +585,8 @@ static void update_screen_state(struct charger *charger, int64_t now)
+     /* if we don't have anim frames, we only have one image, so just bump
+      * the cycle counter and exit
+      */
+-    if (batt_anim->num_frames == 0 || batt_anim->cur_level < 0) {
+-        LOGW("[%" PRId64 "] animation missing or unknown battery status\n", now);
++    if (batt_anim->num_frames == 0 || batt_anim->capacity < 0) {
++        LOGV("[%" PRId64 "] animation missing or unknown battery status\n", now);
+         charger->next_screen_transition = now + BATTERY_UNKNOWN_TIME;
+         batt_anim->cur_cycle++;
+         return;
+@@ -664,11 +601,12 @@ static void update_screen_state(struct charger *charger, int64_t now)
+     if (charger->charger_connected) {
+         batt_anim->cur_frame++;
+ 
++        /* if the frame is used for level-only, that is only show it when it's
++         * the current level, skip it during the animation.
++         */
+         while (batt_anim->cur_frame < batt_anim->num_frames &&
+-               (batt_anim->cur_level < batt_anim->frames[batt_anim->cur_frame].min_level ||
+-                batt_anim->cur_level > batt_anim->frames[batt_anim->cur_frame].max_level)) {
++               batt_anim->frames[batt_anim->cur_frame].level_only)
+             batt_anim->cur_frame++;
+-        }
+         if (batt_anim->cur_frame >= batt_anim->num_frames) {
+             batt_anim->cur_cycle++;
+             batt_anim->cur_frame = 0;
+@@ -751,10 +689,9 @@ static void process_key(struct charger *charger, int code, int64_t now)
+                    accordingly. */
+                 if (property_get_bool("ro.enable_boot_charger_mode", false)) {
+                     LOGW("[%" PRId64 "] booting from charger mode\n", now);
+-                    healthd_board_mode_charger_set_backlight(false);
+                     property_set("sys.boot_from_charger_mode", "1");
+                 } else {
+-                    if (charger->batt_anim->cur_level >= charger->boot_min_cap) {
++                    if (charger->batt_anim->capacity >= charger->boot_min_cap) {
+                         LOGW("[%" PRId64 "] rebooting\n", now);
+                         android_reboot(ANDROID_RB_RESTART, 0, 0);
+                     } else {
+@@ -775,24 +712,21 @@ static void process_key(struct charger *charger, int code, int64_t now)
+                  * the animation is running, turn off the animation and request
+                  * suspend.
+                  */
+-                if (!batt_anim->run) {
++                if (!charger->batt_anim->run) {
+                     kick_animation(batt_anim);
+                     request_suspend(false);
+                 } else {
+                     reset_animation(batt_anim);
+                     charger->next_screen_transition = -1;
+-                    healthd_board_mode_charger_set_backlight(false);
++#ifdef HEALTHD_FORCE_BACKLIGHT_CONTROL
++                    set_backlight(false);
++#endif
+                     gr_fb_blank(true);
+                     if (charger->charger_connected)
+                         request_suspend(true);
+                 }
+             }
+         }
+-    } else {
+-        if (key->pending) {
+-            request_suspend(false);
+-            kick_animation(charger->batt_anim);
+-        }
+     }
+ 
+     key->pending = false;
+@@ -801,7 +735,6 @@ static void process_key(struct charger *charger, int code, int64_t now)
+ static void handle_input_state(struct charger *charger, int64_t now)
+ {
+     process_key(charger, KEY_POWER, now);
+-    process_key(charger, KEY_HOME, now);
+ 
+     if (charger->next_key_check != -1 && now > charger->next_key_check)
+         charger->next_key_check = -1;
+@@ -809,7 +742,7 @@ static void handle_input_state(struct charger *charger, int64_t now)
+ 
+ static void handle_power_supply_state(struct charger *charger, int64_t now)
+ {
+-#ifndef NO_CHARGER_LED
++#ifdef HEALTHD_ENABLE_TRICOLOR_LED
+     static int old_soc = 0;
+     int soc = 0;
+ #endif
+@@ -817,9 +750,7 @@ static void handle_power_supply_state(struct charger *charger, int64_t now)
+     if (!charger->have_battery_state)
+         return;
+ 
+-    healthd_board_mode_charger_battery_update(batt_prop);
+-
+-#ifndef NO_CHARGER_LED
++#ifdef HEALTHD_ENABLE_TRICOLOR_LED
+     if (batt_prop && batt_prop->batteryLevel >= 0) {
+         soc = batt_prop->batteryLevel;
+     }
+@@ -937,52 +868,6 @@ static void charger_event_handler(uint32_t /*epevents*/)
+         ev_dispatch();
+ }
+ 
+-animation* init_animation()
+-{
+-    bool parse_success;
+-
+-    std::string content;
+-    if (base::ReadFileToString(animation_desc_path, &content)) {
+-        parse_success = parse_animation_desc(content, &battery_animation);
+-    } else {
+-        LOGW("Could not open animation description at %s\n", animation_desc_path);
+-        parse_success = false;
+-    }
+-
+-    if (!parse_success) {
+-        LOGW("Could not parse animation description. Using default animation.\n");
+-        battery_animation = BASE_ANIMATION;
+-        battery_animation.animation_file.assign("charger/battery_scale");
+-        battery_animation.frames = default_animation_frames;
+-        battery_animation.num_frames = ARRAY_SIZE(default_animation_frames);
+-    }
+-    if (battery_animation.fail_file.empty()) {
+-        battery_animation.fail_file.assign("charger/battery_fail");
+-    }
+-
+-    LOGV("Animation Description:\n");
+-    LOGV("  animation: %d %d '%s' (%d)\n",
+-        battery_animation.num_cycles, battery_animation.first_frame_repeats,
+-        battery_animation.animation_file.c_str(), battery_animation.num_frames);
+-    LOGV("  fail_file: '%s'\n", battery_animation.fail_file.c_str());
+-    LOGV("  clock: %d %d %d %d %d %d '%s'\n",
+-        battery_animation.text_clock.pos_x, battery_animation.text_clock.pos_y,
+-        battery_animation.text_clock.color_r, battery_animation.text_clock.color_g,
+-        battery_animation.text_clock.color_b, battery_animation.text_clock.color_a,
+-        battery_animation.text_clock.font_file.c_str());
+-    LOGV("  percent: %d %d %d %d %d %d '%s'\n",
+-        battery_animation.text_percent.pos_x, battery_animation.text_percent.pos_y,
+-        battery_animation.text_percent.color_r, battery_animation.text_percent.color_g,
+-        battery_animation.text_percent.color_b, battery_animation.text_percent.color_a,
+-        battery_animation.text_percent.font_file.c_str());
+-    for (int i = 0; i < battery_animation.num_frames; i++) {
+-        LOGV("  frame %.2d: %d %d %d\n", i, battery_animation.frames[i].disp_time,
+-            battery_animation.frames[i].min_level, battery_animation.frames[i].max_level);
+-    }
+-
+-    return &battery_animation;
+-}
+-
+ void healthd_mode_charger_init(struct healthd_config* config)
+ {
+     int ret;
+@@ -994,47 +879,41 @@ void healthd_mode_charger_init(struct healthd_config* config)
+ 
+     LOGW("--------------- STARTING CHARGER MODE ---------------\n");
+ 
+-    healthd_board_mode_charger_init();
+-
+     ret = ev_init(input_callback, charger);
+     if (!ret) {
+         epollfd = ev_get_epollfd();
+-        healthd_register_event(epollfd, charger_event_handler, EVENT_WAKEUP_FD);
++        healthd_register_event(epollfd, charger_event_handler);
+     }
+ 
+-    struct animation* anim = init_animation();
+-    charger->batt_anim = anim;
+-
+-    ret = res_create_display_surface(anim->fail_file.c_str(), &charger->surf_unknown);
++    ret = res_create_display_surface("charger/battery_fail", &charger->surf_unknown);
+     if (ret < 0) {
+-        LOGE("Cannot load custom battery_fail image. Reverting to built in.\n");
+-        ret = res_create_display_surface("charger/battery_fail", &charger->surf_unknown);
+-        if (ret < 0) {
+-            LOGE("Cannot load built in battery_fail image\n");
+-            charger->surf_unknown = NULL;
+-        }
++        LOGE("Cannot load battery_fail image\n");
++        charger->surf_unknown = NULL;
+     }
+ 
++    charger->batt_anim = &battery_animation;
++
+     GRSurface** scale_frames;
+     int scale_count;
+     int scale_fps;  // Not in use (charger/battery_scale doesn't have FPS text
+                     // chunk). We are using hard-coded frame.disp_time instead.
+-    ret = res_create_multi_display_surface(anim->animation_file.c_str(),
+-        &scale_count, &scale_fps, &scale_frames);
++    ret = res_create_multi_display_surface("charger/battery_scale", &scale_count, &scale_fps,
++                                           &scale_frames);
+     if (ret < 0) {
+         LOGE("Cannot load battery_scale image\n");
+-        anim->num_frames = 0;
+-        anim->num_cycles = 1;
+-    } else if (scale_count != anim->num_frames) {
++        charger->batt_anim->num_frames = 0;
++        charger->batt_anim->num_cycles = 1;
++    } else if (scale_count != charger->batt_anim->num_frames) {
+         LOGE("battery_scale image has unexpected frame count (%d, expected %d)\n",
+-             scale_count, anim->num_frames);
+-        anim->num_frames = 0;
+-        anim->num_cycles = 1;
++             scale_count, charger->batt_anim->num_frames);
++        charger->batt_anim->num_frames = 0;
++        charger->batt_anim->num_cycles = 1;
+     } else {
+-        for (i = 0; i < anim->num_frames; i++) {
+-            anim->frames[i].surface = scale_frames[i];
++        for (i = 0; i < charger->batt_anim->num_frames; i++) {
++            charger->batt_anim->frames[i].surface = scale_frames[i];
+         }
+     }
++
+     ev_sync_key_state(set_key_callback, charger);
+ 
+     charger->next_screen_transition = -1;
+diff --git a/healthd/include/healthd/BatteryMonitor.h b/healthd/include/healthd/BatteryMonitor.h
+index 38e142b..22dbd4a 100644
+--- a/healthd/include/healthd/BatteryMonitor.h
++++ b/healthd/include/healthd/BatteryMonitor.h
+@@ -1,6 +1,5 @@
+ /*
+  * Copyright (C) 2013 The Android Open Source Project
+- * Copyright (C) 2015 The CyanogenMod Project
+  *
+  * Licensed under the Apache License, Version 2.0 (the "License");
+  * you may not use this file except in compliance with the License.
+diff --git a/healthd/include/healthd/healthd.h b/healthd/include/healthd/healthd.h
+index e9f9da3..acd9ca2 100644
+--- a/healthd/include/healthd/healthd.h
++++ b/healthd/include/healthd/healthd.h
+@@ -49,25 +49,8 @@
+ //    batteryTemperaturePath: battery temperature (POWER_SUPPLY_PROP_TEMP)
+ //    batteryTechnologyPath: battery technology (POWER_SUPPLY_PROP_TECHNOLOGY)
+ //    batteryCurrentNowPath: battery current (POWER_SUPPLY_PROP_CURRENT_NOW)
+-//    batteryCurrentAvgPath: battery average (POWER_SUPPLY_PROP_CURRENT_AVG)
+ //    batteryChargeCounterPath: battery accumulated charge
+ //                                         (POWER_SUPPLY_PROP_CHARGE_COUNTER)
+-//
+-//    dockBatteryStatusPath: dock charging status (POWER_SUPPLY_PROP_STATUS)
+-//    dockBatteryHealthPath: dock battery health (POWER_SUPPLY_PROP_HEALTH)
+-//    dockBatteryPresentPath: dock battery present (POWER_SUPPLY_PROP_PRESENT)
+-//    dockBatteryCapacityPath: remaining dock capacity (POWER_SUPPLY_PROP_CAPACITY)
+-//    dockBatteryVoltagePath: dock battery voltage (POWER_SUPPLY_PROP_VOLTAGE_NOW)
+-//    dockBatteryTemperaturePath: dock battery temperature (POWER_SUPPLY_PROP_TEMP)
+-//    dockBatteryTechnologyPath: dock battery technology (POWER_SUPPLY_PROP_TECHNOLOGY)
+-//    dockBatteryCurrentNowPath: dock battery current (POWER_SUPPLY_PROP_CURRENT_NOW)
+-//    dockBatteryCurrentAvgPath: dock battery average (POWER_SUPPLY_PROP_CURRENT_AVG)
+-//    dockBatteryChargeCounterPath: dock battery accumulated charge
+-//                                         (POWER_SUPPLY_PROP_CHARGE_COUNTER)
+-//
+-// The dockBatterySupported property indicates whether a dock battery is supported
+-// by the device, and whether this module should fetch dock battery values.
+-// Defaults is to false.
+ 
+ struct healthd_config {
+     int periodic_chores_interval_fast;
+@@ -89,20 +72,6 @@ struct healthd_config {
+     int (*energyCounter)(int64_t *);
+     int boot_min_cap;
+     bool (*screen_on)(android::BatteryProperties *props);
+-
+-    bool dockBatterySupported;
+-    android::String8 dockBatteryStatusPath;
+-    android::String8 dockBatteryHealthPath;
+-    android::String8 dockBatteryPresentPath;
+-    android::String8 dockBatteryCapacityPath;
+-    android::String8 dockBatteryVoltagePath;
+-    android::String8 dockBatteryTemperaturePath;
+-    android::String8 dockBatteryTechnologyPath;
+-    android::String8 dockBatteryCurrentNowPath;
+-    android::String8 dockBatteryCurrentAvgPath;
+-    android::String8 dockBatteryChargeCounterPath;
+-
+-    int (*dockEnergyCounter)(int64_t *);
+ };
+ 
+ enum EventWakeup {
+@@ -162,20 +131,4 @@ void healthd_board_init(struct healthd_config *config);
+ 
+ int healthd_board_battery_update(struct android::BatteryProperties *props);
+ 
+-//This API is called to turn on/off the display backlight incase it can't be
+-//handle correcty in the display driver by calling gr_fg_blank();
+-void healthd_board_mode_charger_set_backlight(bool en);
+-
+-//This API is called to update the battery/charging status by using the user
+-//noticeable method other then the animation, such as: LEDs
+-void healthd_board_mode_charger_battery_update(struct android::BatteryProperties *batt_prop);
+-
+-//This API is used to handle some board specific charger mode initialization,
+-//such as: checking the charging is enabled or not.
+-void healthd_board_mode_charger_init(void);
+-
+-//This API is called in the draw_battery() function to draw more infomation
+-//about the battery on the animation, such as the SoC (State of Charge).
+-void healthd_board_mode_charger_draw_battery(struct android::BatteryProperties *batt_prop);
+-
+ #endif /* _HEALTHD_H_ */
+-- 
+2.5.0
+

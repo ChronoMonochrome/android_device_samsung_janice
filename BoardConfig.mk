@@ -236,7 +236,7 @@ else
 endif
 
 # Dex Pre-opt
-# WITH_DEXPREOPT := true
+WITH_DEXPREOPT := false
 # Enable position-independent code for odex files
 # WITH_DEXPREOPT_PIC := true
 # Disable compression of precompiled odex with gzip

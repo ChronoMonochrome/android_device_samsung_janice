@@ -6,8 +6,7 @@ KERNEL_PATCH="kernel/codina/chrono"
 
 if [ "$PATCHES" == "" ] ; then
 	PATCHES="\
-	#vendor/cmsdk \
-	#vendor/cm \
+	vendor/omni \
 	art \
 	bionic \
 	external/jhead \

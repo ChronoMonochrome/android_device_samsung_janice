@@ -1,0 +1,29 @@
+From 29877977d0b995137e6a74f4dffc10776d4e2758 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Thu, 4 May 2017 10:26:24 +0300
+Subject: [PATCH 11/25] system-core_WW02-UID-as-mediaserver.patch
+
+Change-Id: I978ab919b4bb256ca0ada5d68120b7b4265d884c
+---
+ include/private/android_filesystem_config.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/include/private/android_filesystem_config.h b/include/private/android_filesystem_config.h
+index f03346e..3da1476 100644
+--- a/include/private/android_filesystem_config.h
++++ b/include/private/android_filesystem_config.h
+@@ -88,7 +88,11 @@
+ #define AID_WEBSERV       1044  /* webservd process */
+ #define AID_DEBUGGERD     1045  /* debuggerd unprivileged user */
+ #define AID_MEDIA_CODEC   1046  /* mediacodec process */
++#ifdef TARGET_LEGACY_CAMERA_HAL1
++#define AID_CAMERASERVER  AID_MEDIA /* cameraserver process */
++#else
+ #define AID_CAMERASERVER  1047  /* cameraserver process */
++#endif
+ #define AID_FIREWALL      1048  /* firewalld process */
+ #define AID_TRUNKS        1049  /* trunksd process (TPM daemon) */
+ #define AID_NVRAM         1050  /* Access-controlled NVRAM */
+-- 
+2.5.0
+

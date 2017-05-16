@@ -1,0 +1,30 @@
+From ed4e5b3cefa36a8479d1c56098461accfedd54b0 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Thu, 4 May 2017 10:26:24 +0300
+Subject: [PATCH 07/25] system-core_W3-sad-selinux-2002.patch
+
+Change-Id: Ib036d902d29f0ce8c59ab2637583974494c281ac
+---
+ init/service.cpp | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/init/service.cpp b/init/service.cpp
+index 76e0bc8..43220d0 100644
+--- a/init/service.cpp
++++ b/init/service.cpp
+@@ -371,12 +371,6 @@ bool Service::Start() {
+             scon = ret_scon;
+             free(ret_scon);
+         }
+-        if (rc == 0 && scon == mycon) {
+-            ERROR("Service %s does not have a SELinux domain defined.\n", name_.c_str());
+-            free(mycon);
+-            free(fcon);
+-            return false;
+-        }
+         free(mycon);
+         free(fcon);
+         if (rc < 0) {
+-- 
+2.5.0
+
