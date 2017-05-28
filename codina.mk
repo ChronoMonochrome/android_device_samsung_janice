@@ -206,6 +206,10 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     libstlport
 
+# Camera wrapper
+PRODUCT_PACKAGES += \
+    camera.montblanc
+
 # Snap Camera
 PRODUCT_PACKAGES += \
     Snap
