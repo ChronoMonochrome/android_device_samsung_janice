@@ -1,0 +1,233 @@
+From 283db57f8f11a02353a092d84a97bdb3c35d5315 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Sat, 4 Mar 2017 13:11:56 +0100
+Subject: [PATCH 6/6] Vold: use volume label instead of UUID
+
+Change-Id: I04af9bebcba496a82f8185890d2fd81e53811892
+---
+ Disk.cpp          |  8 +++++---
+ Disk.h            |  4 +++-
+ DiskPartition.cpp |  4 +++-
+ DiskPartition.h   |  3 +++
+ PublicVolume.cpp  |  9 +++++----
+ PublicVolume.h    |  4 +++-
+ VolumeManager.cpp |  2 ++
+ VolumeManager.h   | 10 +++++++---
+ main.cpp          |  4 +++-
+ 9 files changed, 34 insertions(+), 14 deletions(-)
+
+diff --git a/Disk.cpp b/Disk.cpp
+index 0161e5d..7f72a01 100644
+--- a/Disk.cpp
++++ b/Disk.cpp
+@@ -115,9 +115,11 @@ static bool isVirtioBlkDevice(unsigned int major) {
+ }
+ 
+ Disk::Disk(const std::string& eventPath, dev_t device,
++        const std::string& label,
+         const std::string& nickname, int flags) :
+-        mDevice(device), mSize(-1), mNickname(nickname), mFlags(flags), mCreated(
+-                false), mJustPartitioned(false), mSkipChange(false) {
++        mDevice(device), mSize(-1), mOldLabel(label), mNickname(nickname),
++        mFlags(flags), mCreated(false),
++                      mJustPartitioned(false), mSkipChange(false) {
+     mId = StringPrintf("disk:%u_%u", major(device), minor(device));
+     mEventPath = eventPath;
+     mSysPath = StringPrintf("/sys/%s", eventPath.c_str());
+@@ -172,7 +174,7 @@ status_t Disk::destroy() {
+ void Disk::createPublicVolume(dev_t device,
+                 const std::string& fstype /* = "" */,
+                 const std::string& mntopts /* = "" */) {
+-    auto vol = std::shared_ptr<VolumeBase>(new PublicVolume(device, mNickname, fstype, mntopts));
++    auto vol = std::shared_ptr<VolumeBase>(new PublicVolume(device, mOldLabel, mNickname, fstype, mntopts));
+     if (mJustPartitioned) {
+         LOG(DEBUG) << "Device just partitioned; silently formatting";
+         vol->setSilent(true);
+diff --git a/Disk.h b/Disk.h
+index 20f5522..4e47df2 100644
+--- a/Disk.h
++++ b/Disk.h
+@@ -37,7 +37,7 @@ class VolumeBase;
+  */
+ class Disk {
+ public:
+-    Disk(const std::string& eventPath, dev_t device, const std::string& nickname, int flags);
++    Disk(const std::string& eventPath, dev_t device, const std::string& label, const std::string& nickname, int flags);
+     virtual ~Disk();
+ 
+     enum Flags {
+@@ -101,6 +101,8 @@ protected:
+     std::string mLabel;
+     /* Current partitions on disk */
+     std::vector<std::shared_ptr<VolumeBase>> mVolumes;
++
++    std::string mOldLabel;
+     /* Nickname for this disk */
+     std::string mNickname;
+     /* Flags applicable to this disk */
+diff --git a/DiskPartition.cpp b/DiskPartition.cpp
+index 13b084b..9416a0f 100644
+--- a/DiskPartition.cpp
++++ b/DiskPartition.cpp
+@@ -44,10 +44,12 @@ namespace android {
+ namespace vold {
+ 
+ DiskPartition::DiskPartition(const std::string& eventPath, dev_t device,
++            const std::string& label,
+             const std::string& nickname, int flags, int partnum,
+             const std::string& fstype /* = "" */, const std::string& mntopts /* = "" */) :
+-        Disk(eventPath, device, nickname, flags),
++        Disk(eventPath, device, label, nickname, flags),
+         mPartNum(partnum),
++        mLabel(label),
+         mFsType(fstype),
+         mMntOpts(mntopts) {
+     // Empty
+diff --git a/DiskPartition.h b/DiskPartition.h
+index b1fa33b..57b4fe2 100644
+--- a/DiskPartition.h
++++ b/DiskPartition.h
+@@ -30,6 +30,7 @@ namespace vold {
+ class DiskPartition : public Disk {
+ public:
+     DiskPartition(const std::string& eventPath, dev_t device,
++            const std::string& label,
+             const std::string& nickname,
+             int flags, int partnum,
+             const std::string& fstype = "", const std::string& mntopts = "");
+@@ -45,6 +46,8 @@ public:
+ private:
+     /* Partition number */
+     int mPartNum;
++
++    std::string mLabel;
+     /* Filesystem type */
+     std::string mFsType;
+     /* Mount options */
+diff --git a/PublicVolume.cpp b/PublicVolume.cpp
+index 8faf00d..3a06f28 100644
+--- a/PublicVolume.cpp
++++ b/PublicVolume.cpp
+@@ -49,11 +49,12 @@ static const char* kFusePath = "/system/bin/sdcard";
+ 
+ static const char* kAsecPath = "/mnt/secure/asec";
+ 
+-PublicVolume::PublicVolume(dev_t device, const std::string& nickname,
++PublicVolume::PublicVolume(dev_t device, const std::string& label,
++                const std::string& nickname,
+                 const std::string& fstype /* = "" */,
+                 const std::string& mntopts /* = "" */) :
+         VolumeBase(Type::kPublic), mDevice(device), mFusePid(0),
+-        mFsType(fstype), mFsLabel(nickname), mMntOpts(mntopts) {
++        mFsType(fstype), mFsLabel(nickname), mMntOpts(mntopts), mLabel(label) {
+     setId(StringPrintf("public:%u_%u", major(device), minor(device)));
+     mDevPath = StringPrintf("/dev/block/vold/%s", getId().c_str());
+ }
+@@ -115,8 +116,8 @@ status_t PublicVolume::doMount() {
+ 
+     // Use volume label and otherwise UUID as stable name, if available
+     std::string stableName = getId();
+-    if (!mFsLabel.empty()) {
+-        stableName = mFsLabel;
++    if (!mLabel.empty()) {
++        stableName = mLabel;
+     } else if (!mFsUuid.empty()) {
+         stableName = mFsUuid;
+     }
+diff --git a/PublicVolume.h b/PublicVolume.h
+index e9e2926..3f507c5 100644
+--- a/PublicVolume.h
++++ b/PublicVolume.h
+@@ -39,7 +39,7 @@ namespace vold {
+  */
+ class PublicVolume : public VolumeBase {
+ public:
+-    PublicVolume(dev_t device, const std::string& nickname,
++    PublicVolume(dev_t device, const std::string& label, const std::string& nickname,
+                     const std::string& mntopts = "", const std::string& fstype = "");
+     virtual ~PublicVolume();
+ 
+@@ -77,6 +77,8 @@ private:
+     /* Mount options */
+     std::string mMntOpts;
+ 
++    std::string mLabel;
++
+     DISALLOW_COPY_AND_ASSIGN(PublicVolume);
+ };
+ 
+diff --git a/VolumeManager.cpp b/VolumeManager.cpp
+index e06e887..7f82a9a 100644
+--- a/VolumeManager.cpp
++++ b/VolumeManager.cpp
+@@ -313,8 +313,10 @@ void VolumeManager::handleBlockEvent(NetlinkEvent *evt) {
+ 
+                 android::vold::Disk* disk = (source->getPartNum() == -1) ?
+                         new android::vold::Disk(eventPath, device,
++                                source->getLabel(),
+                                 source->getNickname(), flags) :
+                         new android::vold::DiskPartition(eventPath, device,
++                                source->getLabel(),
+                                 source->getNickname(), flags,
+                                 source->getPartNum(),
+                                 source->getFsType(), source->getMntOpts());
+diff --git a/VolumeManager.h b/VolumeManager.h
+index dfd8c8f..90aae28 100644
+--- a/VolumeManager.h
++++ b/VolumeManager.h
+@@ -97,11 +97,13 @@ public:
+ 
+     class DiskSource {
+     public:
+-        DiskSource(const std::string& sysPattern, const std::string& nickname,
++        DiskSource(const std::string& sysPattern, const std::string &label,
++                        const std::string& nickname,
+                         int partnum, int flags,
+                         const std::string& fstype, const std::string mntopts) :
+-                mSysPattern(sysPattern), mNickname(nickname),
+-                mPartNum(partnum), mFlags(flags),
++                mSysPattern(sysPattern), mLabel(label),
++                mNickname(nickname), mPartNum(partnum),
++                mFlags(flags),
+                 mFsType(fstype), mMntOpts(mntopts) {
+         }
+ 
+@@ -112,11 +114,13 @@ public:
+         const std::string& getNickname() { return mNickname; }
+         int getPartNum() { return mPartNum; }
+         int getFlags() { return mFlags; }
++	const std::string& getLabel() {return mLabel; }
+         const std::string& getFsType() { return mFsType; }
+         const std::string& getMntOpts() { return mMntOpts; }
+ 
+     private:
+         std::string mSysPattern;
++        std::string mLabel;
+         std::string mNickname;
+         int mPartNum;
+         int mFlags;
+diff --git a/main.cpp b/main.cpp
+index 15c9719..e46739f 100644
+--- a/main.cpp
++++ b/main.cpp
+@@ -236,6 +236,8 @@ static int process_config(VolumeManager *vm, bool* has_adoptable) {
+         if (fs_mgr_is_voldmanaged(&fstab->recs[i])) {
+             std::string sysPattern(fstab->recs[i].blk_device);
+             std::string fstype;
++            std::string label(fstab->recs[i].label);
++
+             if (fstab->recs[i].fs_type) {
+                 fstype = fstab->recs[i].fs_type;
+             }
+@@ -260,7 +262,7 @@ static int process_config(VolumeManager *vm, bool* has_adoptable) {
+             }
+ 
+             vm->addDiskSource(std::shared_ptr<VolumeManager::DiskSource>(
+-                    new VolumeManager::DiskSource(sysPattern, nickname, partnum, flags,
++                    new VolumeManager::DiskSource(sysPattern, label, nickname, partnum, flags,
+                                     fstype, mntopts)));
+         }
+     }
+-- 
+2.5.0
+
