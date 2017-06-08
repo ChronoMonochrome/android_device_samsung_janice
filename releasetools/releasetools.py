@@ -1,3 +1,7 @@
+import os
+
+TARGET_DIR = os.getenv('OUT')
+
 def FullOTA_InstallEnd(info):
 #	info.script.AppendExtra('symlink("/system/lib/modules/tun.ko", "/system/lib/modules/autoload/tun.ko");')
 	info.script.AppendExtra('symlink("/system/lib/modules/cpufreq_zenx.ko", "/system/lib/modules/autoload/cpufreq_zenx.ko");')
@@ -9,6 +13,7 @@ def FullOTA_InstallEnd(info):
 	info.script.AppendExtra('symlink("/system/lib/ste_omxcomponents/libste_dec_amrwb.so", "/system/lib/libste_dec_amrwb.so");')
 	info.script.AppendExtra('symlink("/system/lib/ste_omxcomponents/libste_enc_amrwb.so", "/system/lib/libste_enc_amrwb.so");')
 #	info.script.AppendExtra('run_program("/sbin/make_ext4fs", "/dev/block/mmcblk0p9");')
+	info.output_zip.write(os.path.join(TARGET_DIR, "updater-script-codina"), "META-INF/com/google/android/updater-script-codina")
 
 def FullOTA_InstallNew(info):
 	info.script.AppendExtra('run_program("/sbin/busybox", "mkdir", "/ramdisk");')
