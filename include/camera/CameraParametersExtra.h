@@ -30,6 +30,8 @@ const char CameraParameters::PIXEL_FORMAT_YVU420SP[] = "yvu420sp"; \
 const char CameraParameters::PIXEL_FORMAT_YVU420P[]  = "yvu420p"; \
 const char CameraParameters::KEY_RECORD_STRIDE[] = "record-stride"; \
 const char CameraParameters::KEY_RECORD_SLICE_HEIGHT[] = "record-slice-height"; \
+const char CameraParameters::KEY_SUPPORTED_ISO_MODES[] = "iso-values"; \
+const char CameraParameters::KEY_ISO_MODE[] = "iso"; \
 CAMERA_PARAMETERS_EXTRA_C_DURATION_TIMER \
 
 #define CAMERA_PARAMETERS_EXTRA_H \
@@ -45,4 +47,7 @@ CAMERA_PARAMETERS_EXTRA_C_DURATION_TIMER \
     static const char PIXEL_FORMAT_YVU420P[]; \
     static const char PIXEL_FORMAT_YUV420MB[]; \
     static const char KEY_RECORD_STRIDE[]; \
-    static const char KEY_RECORD_SLICE_HEIGHT[];
+    static const char KEY_RECORD_SLICE_HEIGHT[]; \
+    static const char KEY_SUPPORTED_ISO_MODES[]; \
+    static const char KEY_ISO_MODE[];
+
