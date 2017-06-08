@@ -30,7 +30,7 @@ DEVICE_ENABLE_LOV := true
 DEVICE_WiFi_NEW := true
 # DEVICE_ENABLE_SUBMIX := true
 # DEVICE_ENABLE_XML_AUDIO := true
-# DEVICE_ENABLE_CHANGER_CM := true
+DEVICE_ENABLE_CHANGER_CM := true
 
 # Media
 ifeq ($(DEVICE_ENABLE_LOV),true)
@@ -223,6 +223,10 @@ PRODUCT_TAGS += dalvik.gc.type-precise
 
 # Use the non-open-source parts, if they're present
 include vendor/samsung/u8500-common/vendor-common.mk
+
+PRODUCT_COPY_FILES += \
+    $(LOCAL_PATH)/updater-script-codina:updater-script-codina \
+    $(LOCAL_PATH)/configs/wipe.sh:install/wipe.sh
 
 # == BEGIN LOCAL CONFIG ==
 
