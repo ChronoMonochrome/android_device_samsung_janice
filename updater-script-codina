@@ -130,6 +130,10 @@ symlink("toolbox", "/system/bin/dd", "/system/bin/getevent",
         "/system/bin/prlimit", "/system/bin/ps", "/system/bin/restart",
         "/system/bin/sendevent", "/system/bin/start", "/system/bin/stop",
         "/system/bin/top");		
+
+symlink("toybox", "/system/bin/mount", "/system/bin/getprop",
+        "/system/bin/setprop");	
+
 symlink("mtools", "/system/xbin/mattrib", "/system/xbin/mbadblocks", "/system/xbin/mcat", "/system/xbin/mcd", "/system/xbin/mclasserase", "/system/xbin/mcopy", "/system/xbin/mdel", "/system/xbin/mdeltree", "/system/xbin/mdir", "/system/xbin/mdoctorfat", "/system/xbin/mdu", "/system/xbin/mformat", "/system/xbin/minfo", "/system/xbin/mlabel", "/system/xbin/mmd", "/system/xbin/mmount", "/system/xbin/mpartition", "/system/xbin/mrd", "/system/xbin/mread", "/system/xbin/mmove", "/system/xbin/mren", "/system/xbin/mshowfat", "/system/xbin/mshortname", "/system/xbin/mtoolstest", "/system/xbin/mtype", "/system/xbin/mwrite", "/system/xbin/mzip");
 
 set_metadata_recursive("/system", "uid", 0, "gid", 0, "dmode", 0755, "fmode", 0644, "capabilities", "0x0", "selabel", "u:object_r:system_file:s0");
