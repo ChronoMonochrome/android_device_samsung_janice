@@ -17,20 +17,17 @@ if [ "$PATCHES" == "" ] ; then
 	#frameworks/base \
 	frameworks/opt/net/wifi \
 	frameworks/opt/telephony \
-	frameworks/native \
+	#frameworks/native \
 	hardware/ril \
 	hardware/libhardware \
 	system/media \
-	system/core \
+	#system/core \
 	system/netd \
 	system/vold \
 	system/extras \
 	build \
-	packages/apps/Dialer \
-	packages/apps/Settings \
-	packages/apps/LockClock \
-	packages/apps/CMParts \
-	packages/apps/AudioFX \
+	#packages/apps/Dialer \
+	#packages/apps/Settings \
 	packages/services/Telephony \
 	packages/inputmethods/LatinIME \
 	packages/providers/MediaProvider \
