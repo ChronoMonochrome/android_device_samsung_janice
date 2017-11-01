@@ -1,0 +1,53 @@
+From b6b9105833ef336fbfca73795bd61ef3684ed3b1 Mon Sep 17 00:00:00 2001
+From: Shilin Victor <chrono.monochrome@gmail.com>
+Date: Wed, 1 Nov 2017 21:42:49 +0300
+Subject: [PATCH] protobuf: build targets only for linux
+
+Change-Id: I6c7e1f46d07f5f82336c8b8262d1e91ff109da91
+---
+ Android.mk | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/Android.mk b/Android.mk
+index 1fd50c1..8c348c9 100644
+--- a/Android.mk
++++ b/Android.mk
+@@ -304,7 +304,7 @@ include $(CLEAR_VARS)
+ 
+ LOCAL_MODULE := libprotobuf-cpp-lite_static
+ 
+-LOCAL_MODULE_HOST_OS := darwin linux windows
++LOCAL_MODULE_HOST_OS := linux
+ 
+ LOCAL_CPP_EXTENSION := .cc
+ 
+@@ -338,7 +338,7 @@ include $(CLEAR_VARS)
+ 
+ LOCAL_MODULE := libprotobuf-cpp-lite
+ 
+-LOCAL_MODULE_HOST_OS := darwin linux windows
++LOCAL_MODULE_HOST_OS := linux
+ 
+ LOCAL_WHOLE_STATIC_LIBRARIES := libprotobuf-cpp-lite_static
+ 
+@@ -348,7 +348,7 @@ include $(BUILD_HOST_SHARED_LIBRARY)
+ 
+ include $(CLEAR_VARS)
+ LOCAL_MODULE := libprotobuf-cpp-lite
+-LOCAL_MODULE_HOST_OS := darwin linux windows
++LOCAL_MODULE_HOST_OS := linux
+ LOCAL_CPP_EXTENSION := .cc
+ LOCAL_SRC_FILES := $(CC_LITE_SRC_FILES)
+ LOCAL_C_INCLUDES := \
+@@ -567,7 +567,7 @@ protobuf_cc_full_src_files :=
+ include $(CLEAR_VARS)
+ 
+ LOCAL_MODULE := aprotoc
+-LOCAL_MODULE_HOST_OS := darwin linux windows
++LOCAL_MODULE_HOST_OS := linux
+ 
+ # Statically link libc++ because we copy aprotoc to unbundled projects where
+ # libc++.so may not be available.
+-- 
+2.7.4
+

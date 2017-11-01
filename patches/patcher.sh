@@ -6,32 +6,19 @@ KERNEL_PATCH="kernel/codina/chrono"
 
 if [ "$PATCHES" == "" ] ; then
 	PATCHES="\
-	vendor/omni \
-	art \
-	bionic \
-	external/jhead \
 	external/boringssl \
+	external/protobuf \
+	external/busybox \
+	external/jhead \
+	external/ipsec-tools \
 	external/jemalloc \
-	libcore \
-	frameworks/av \
-	#frameworks/base \
-	frameworks/opt/net/wifi \
-	frameworks/opt/telephony \
-	#frameworks/native \
-	hardware/ril \
-	hardware/libhardware \
-	system/media \
-	#system/core \
 	system/netd \
-	system/vold \
-	system/extras \
-	build \
-	#packages/apps/Dialer \
-	#packages/apps/Settings \
-	packages/services/Telephony \
+	system/keymaster \
+	system/media \
+	libcore \
 	packages/inputmethods/LatinIME \
-	packages/providers/MediaProvider \
-	bootable/recovery"
+	packages/providers/MediaProvider
+"
 fi
 
 export CL_RED="\033[31m"
