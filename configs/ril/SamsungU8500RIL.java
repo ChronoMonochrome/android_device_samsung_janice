@@ -687,7 +687,7 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
         }
 
         switch (newResponse) {
-            case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED: ret =  responseVoid(p); break;
+            //case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED: ret =  responseVoid(p); break;
             case RIL_UNSOL_RESPONSE_NEW_BROADCAST_SMS: ret = responseString(p); break;
             case RIL_UNSOL_RIL_CONNECTED: ret = responseInts(p); break;
             case RIL_UNSOL_AM:
@@ -730,35 +730,6 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
                 }*/
                 // Add debug to check if this wants to execute any useful am command
                 Rlog.v(RILJ_LOG_TAG, "codina: am=" + amString);
-                break;
-            case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED:
-                /* has bonus radio state int */
-                int state = p.readInt();
-                Rlog.d(RILJ_LOG_TAG, "Radio state: " + state);
-
-                switch (state) {
-                    case 2:
-                        // RADIO_UNAVAILABLE
-                        state = 1;
-                        break;
-                    case 3:
-                        // RADIO_ON
-                        state = 10;
-                        break;
-                    case 4:
-                        // RADIO_ON
-                        state = 10;
-                        // When SIM is PIN-unlocked, RIL doesn't respond with RIL_UNSOL_RESPONSE_SIM_STATUS_CHANGED.
-                        // We notify the system here.
-                        Rlog.d(RILJ_LOG_TAG, "SIM is PIN-unlocked now");
-                        if (mIccStatusChangedRegistrants != null) {
-                            mIccStatusChangedRegistrants.notifyRegistrants();
-                        }
-                        break;
-                }
-                RadioState newState = getRadioStateFromInt(state);
-                Rlog.d(RILJ_LOG_TAG, "New Radio state: " + state + " (" + newState.toString() + ")");
-                switchToRadioState(newState);
                 break;
             case RIL_UNSOL_RESPONSE_NEW_BROADCAST_SMS:
                 if (RILJ_LOGD) unsljLogRet(newResponse, ret);
