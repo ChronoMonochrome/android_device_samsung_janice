@@ -2,9 +2,10 @@ assert(getprop("ro.product.device") == "codina" || getprop("ro.build.product") =
 ui_print("Target: samsung/ulti_codina/codina:6.0.1/MHC19J/2dd5b09793:userdebug/test-keys");
 ifelse(is_mounted("/system"), unmount("/system"));
 show_progress(0.750000, 0);
-format("ext4", "EMMC", "/dev/block/mmcblk0p3", "0", "/system");
-mount("ext4", "EMMC", "/dev/block/mmcblk0p3", "/system", "max_batch_time=0,commit=1,data=ordered,barrier=1,errors=panic,nodelalloc");
-package_extract_dir("recovery", "/system");
+run_program("/sbin/busybox", "mount", "/system");
+package_extract_dir("install", "/tmp");
+run_program("/sbin/busybox", "chmod", "755", "/tmp/wipe.sh");
+run_program("/sbin/sh", "/tmp/wipe.sh");
 package_extract_dir("system", "/system");
 symlink("/system/lib/libbluetooth_jni.so", "/system/app/Bluetooth/lib/arm/libbluetooth_jni.so");
 symlink("/system/lib/libdefcontainer_jni.so", "/system/priv-app/DefaultContainerService/lib/arm/libdefcontainer_jni.so");
@@ -225,12 +226,12 @@ set_metadata("/system/xbin/perfprofd", "uid", 0, "gid", 2000, "mode", 0755, "cap
 set_metadata("/system/xbin/procmem", "uid", 0, "gid", 0, "mode", 06755, "capabilities", 0x0, "selabel", "u:object_r:system_file:s0");
 set_metadata("/system/xbin/procrank", "uid", 0, "gid", 0, "mode", 06755, "capabilities", 0x0, "selabel", "u:object_r:procrank_exec:s0");
 show_progress(0.050000, 5);
-package_extract_file("boot.img", "/dev/block/mmcblk0p15");
+# package_extract_file("boot.img", "/dev/block/mmcblk0p15");
 show_progress(0.200000, 10);
 unmount("/system");
 
 # Viper4android driver post-install
 ifelse(is_mounted("/data"), unmount("/data"));
 run_program("/sbin/busybox", "mount", "/data");
-package_extract_dir("install/data", "/data");
+package_extract_dir("data", "/data");
 symlink("/data/app-lib/com.vipercn.viper4android_v2", "/data/data/com.vipercn.viper4android_v2/lib");

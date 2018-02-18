@@ -86,11 +86,13 @@ PRODUCT_COPY_FILES += $(call find-copy-subdir-files,*,$(LOCAL_PATH)/configs/init
 #$(shell mkdir -p $(TARGET_OUT)/install/data/data/com.vipercn.viper4android_v2/files)
 #$(shell cp -rf $(LOCAL_PATH)/configs/data $(TARGET_OUT)/install/ )
 
-PRODUCT_COPY_FILES += $(call find-copy-subdir-files,*,$(LOCAL_PATH)/configs/data,install/data)
+PRODUCT_COPY_FILES += $(call find-copy-subdir-files,*,$(LOCAL_PATH)/configs/data,data)
 
 # APN
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/configs/updater-script-codina:META-INF/com/google/android/updater-script-codina
+    $(LOCAL_PATH)/prebuilt/update-binary:update-binary \
+    $(LOCAL_PATH)/configs/updater-script-codina:META-INF/com/google/android/updater-script-codina \
+    $(LOCAL_PATH)/configs/wipe.sh:install/wipe.sh
 
 # Bluetooth
 PRODUCT_COPY_FILES += \
