@@ -69,26 +69,11 @@ PRODUCT_COPY_FILES += \
 
 # init.d
 PRODUCT_COPY_FILES += $(call find-copy-subdir-files,*,$(LOCAL_PATH)/configs/init.d,system/etc/init.d)
-#$(shell mkdir -p $(TARGET_OUT)/system/etc/init.d)
-#$(shell cp -rf $(LOCAL_PATH)/configs/init.d $(TARGET_OUT)/system/etc/init.d/ )
-
-#PRODUCT_COPY_FILES += \
-#    $(LOCAL_PATH)/configs/init.d/00autoload:system/etc/init.d/00autoload \
-#    $(LOCAL_PATH)/configs/init.d/00ulti:system/etc/init.d/00ulti \
-#    $(LOCAL_PATH)/configs/init.d/02fsync:system/etc/init.d/02fsync \
-#    $(LOCAL_PATH)/configs/init.d/10dynamic:system/etc/init.d/10dynamic \
-#    $(LOCAL_PATH)/configs/init.d/20minfree:system/etc/init.d/20minfree \
-#    $(LOCAL_PATH)/configs/init.d/60zram:system/etc/init.d/60zram
-
 
 # Viper4Android
-#$(shell mkdir -p $(TARGET_OUT)/install/data/data/com.vipercn.viper4android_v2/shared_prefs)
-#$(shell mkdir -p $(TARGET_OUT)/install/data/data/com.vipercn.viper4android_v2/files)
-#$(shell cp -rf $(LOCAL_PATH)/configs/data $(TARGET_OUT)/install/ )
-
 PRODUCT_COPY_FILES += $(call find-copy-subdir-files,*,$(LOCAL_PATH)/configs/data,data)
 
-# APN
+# Updater-script
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/prebuilt/update-binary:update-binary \
     $(LOCAL_PATH)/configs/updater-script-codina:META-INF/com/google/android/updater-script-codina \
@@ -172,6 +157,10 @@ PRODUCT_PACKAGES += \
     mkfs.f2fs \
     fsck.f2fs \
     fibmap.f2fs
+
+# mtools
+PRODUCT_PACKAGES += \
+    mtools
 
 # Keylayout
 PRODUCT_COPY_FILES += \
