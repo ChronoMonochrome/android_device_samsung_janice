@@ -1,0 +1,16 @@
+<?xml version='1.0' encoding='utf-8' standalone='yes' ?>
+<map>
+    <boolean name="viper4android.headphonefx.fidelity.bass.enable" value="false" />
+    <string name="viper4android.headphonefx.fireq.custom">-1.2;10.4;10.8;1.5;2.3;2.0;12.0;10.0;9.9;-0.7;</string>
+    <string name="viper4android.headphonefx.fidelity.clarity.gain">50</string>
+    <boolean name="viper4android.headphonefx.vhs.enable" value="true" />
+    <string name="viper4android.headphonefx.fidelity.bass.gain">50</string>
+    <boolean name="viper4android.headphonefx.fidelity.clarity.enable" value="false" />
+    <boolean name="viper4android.headphonefx.fireq.enable" value="true" />
+    <boolean name="viper4android.headphonefx.enable" value="true" />
+    <string name="viper4android.headphonefx.playbackgain.ratio">50</string>
+    <boolean name="viper4android.headphonefx.cure.enable" value="false" />
+    <string name="viper4android.headphonefx.vhs.qual">0</string>
+    <string name="viper4android.headphonefx.cure.crossfeed">1</string>
+    <string name="viper4android.headphonefx.fireq">custom</string>
+</map>

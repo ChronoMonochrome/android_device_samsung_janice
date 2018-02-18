@@ -73,7 +73,7 @@ BOARD_CUSTOM_BOOTIMG_MK := device/samsung/codina/shbootimg.mk
 
 #PLATFORM_GOOGLE_4.9 := true
 
-KERNEL_TOOLCHAIN := /media/ROM/root/prebuilts/gcc/linux-x86/arm/arm-eabi-5.2/bin
+KERNEL_TOOLCHAIN := /media/system1/root/ULTI/prebuilts/gcc/linux-x86/arm/arm-eabi-5.2/bin
 KERNEL_TOOLCHAIN_PREFIX := arm-eabi-
 
 # Graphics

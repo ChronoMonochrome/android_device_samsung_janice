@@ -1,0 +1,21 @@
+#!/system/bin/sh -x
+
+####### module autoload ######
+MODULES="/system/lib/modules/autoload"
+BB=/system/xbin/busybox
+
+rw_system() {
+	$BB mount -o remount,rw /system
+}
+ro_system() {
+	$BB mount -o remount,ro /system
+}
+
+rw_system
+$BB chmod -R 755 $MODULES
+ro_system
+
+for i in $(ls $MODULES/*.ko)
+do
+	$BB insmod $MODULES/*.ko
+done
