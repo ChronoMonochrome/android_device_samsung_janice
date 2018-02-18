@@ -112,6 +112,10 @@ BOARD_BLUEDROID_VENDOR_CONF := $(LOCAL_PATH)/configs/bluetooth/vnd_u8500.txt
 # RIL
 BOARD_RIL_CLASS := ../../../device/samsung/codina/configs/ril
 
+BOARD_PROVIDES_RILD := true
+BOARD_PROVIDES_LIBRIL := true
+BOARD_PROVIDES_LIBRILUTILS := true
+
 # Audio
 BOARD_USES_ALSA_AUDIO := true
 BOARD_HAVE_PRE_KITKAT_AUDIO_BLOB := true
@@ -219,7 +223,7 @@ DONT_DEXPREOPT_PREBUILTS := true
 
 # Disable compression of precompiled odex with gzip
 WITH_DEXPREOPT_COMP := false
- 
+
 # Enable position-independent code for odex files
 WITH_DEXPREOPT_PIC := true
 
