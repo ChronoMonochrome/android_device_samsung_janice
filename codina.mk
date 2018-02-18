@@ -75,7 +75,7 @@ PRODUCT_COPY_FILES += $(call find-copy-subdir-files,*,$(LOCAL_PATH)/configs/data
 
 # Updater-script
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/prebuilt/update-binary:update-binary \
+    $(LOCAL_PATH)/prebuilt/updater:updater \
     $(LOCAL_PATH)/configs/updater-script-codina:META-INF/com/google/android/updater-script-codina \
     $(LOCAL_PATH)/configs/wipe.sh:install/wipe.sh
 
