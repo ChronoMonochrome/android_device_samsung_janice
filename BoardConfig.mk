@@ -229,6 +229,7 @@ WITH_DEXPREOPT_PIC := true
 
 FTREE_VECTORIZE := true
 FFAST_MATH := true
+FORCE_CUSTOM_GCC := true
 #FORCE_GCC52 := true
 #FORCE_ARM := true
 #STRICT_ALIASING := true
