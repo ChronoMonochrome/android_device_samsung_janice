@@ -144,10 +144,25 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
     static final int RIL_UNSOL_AM = 11010;
     static final int RIL_UNSOL_DUN_PIN_CONTROL_SIGNAL = 11011;
     static final int RIL_UNSOL_DATA_SUSPEND_RESUME = 11012;
+    static final int RIL_UNSOL_SAP = 11013;
 
+    static final int RIL_UNSOL_SIM_SMS_STORAGE_AVAILALE = 11015;
+    static final int RIL_UNSOL_HSDPA_STATE_CHANGED = 11016;
     static final int RIL_UNSOL_TWO_MIC_STATE = 11018;
-    static final int RIL_UNSOL_SIM_PB_READY = 11021;
-    static final int RIL_UNSOL_WB_AMR_STATE = 20017;
+    static final int RIL_UNSOL_DHA_STATE = 11019;
+    static final int RIL_UNSOL_UART = 11020;
+    static final int RIL_UNSOL_RESPONSE_HANDOVER = 11021;
+    static final int RIL_UNSOL_IPV6_ADDR = 11022;
+    static final int RIL_UNSOL_NWK_INIT_DISC_REQUEST = 11023;
+    static final int RIL_UNSOL_RTS_INDICATION = 11024;
+    static final int RIL_UNSOL_OMADM_SEND_DATA = 11025;
+    static final int RIL_UNSOL_DUN = 11026;
+    static final int RIL_UNSOL_SYSTEM_REBOOT = 11027;
+    static final int RIL_UNSOL_VOICE_PRIVACY_CHANGED = 11028;
+    static final int RIL_UNSOL_UTS_GETSMSCOUNT = 11029;
+    static final int RIL_UNSOL_UTS_GETSMSMSG = 11030;
+    static final int RIL_UNSOL_UTS_GET_UNREAD_SMS_STATUS = 11031;
+    static final int RIL_UNSOL_MIP_CONNECT_STATUS = 11032;
 
     protected HandlerThread mSamsungu8500RILThread;
     protected ConnectivityHandler mSamsungu8500RILHandler;
@@ -556,85 +571,6 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
     }
 
     @Override
-    protected Object
-    responseCallList(Parcel p) {
-        int num;
-        int voiceSettings;
-        ArrayList<DriverCall> response;
-        DriverCall dc;
-
-        num = p.readInt();
-        response = new ArrayList<DriverCall>(num);
-
-        if (RILJ_LOGV) {
-            riljLog("responseCallList: num=" + num +
-                    " mEmergencyCallbackModeRegistrant=" + mEmergencyCallbackModeRegistrant +
-                    " mTestingEmergencyCall=" + mTestingEmergencyCall.get());
-        }
-        for (int i = 0 ; i < num ; i++) {
-            dc = new DriverCall();
-
-            dc.state = DriverCall.stateFromCLCC(p.readInt());
-            dc.index = p.readInt() & 0xff;
-            dc.TOA = p.readInt();
-            dc.isMpty = (0 != p.readInt());
-            dc.isMT = (0 != p.readInt());
-            dc.als = p.readInt();
-            voiceSettings = p.readInt();
-            dc.isVoice = (0 == voiceSettings) ? false : true;
-            dc.isVoicePrivacy = (0 != p.readInt());
-            dc.number = p.readString();
-            int np = p.readInt();
-            dc.numberPresentation = DriverCall.presentationFromCLIP(np);
-            dc.name = p.readString();
-            // according to ril.h, namePresentation should be handled as numberPresentation;
-            dc.namePresentation = DriverCall.presentationFromCLIP(p.readInt());
-            int uusInfoPresent = p.readInt();
-            if (uusInfoPresent == 1) {
-                dc.uusInfo = new UUSInfo();
-                dc.uusInfo.setType(p.readInt());
-                dc.uusInfo.setDcs(p.readInt());
-                byte[] userData = p.createByteArray();
-                dc.uusInfo.setUserData(userData);
-                riljLogv(String.format("Incoming UUS : type=%d, dcs=%d, length=%d",
-                                dc.uusInfo.getType(), dc.uusInfo.getDcs(),
-                                dc.uusInfo.getUserData().length));
-                riljLogv("Incoming UUS : data (string)="
-                        + new String(dc.uusInfo.getUserData()));
-                riljLogv("Incoming UUS : data (hex): "
-                        + IccUtils.bytesToHexString(dc.uusInfo.getUserData()));
-            } else {
-                riljLogv("Incoming UUS : NOT present!");
-            }
-
-            // Make sure there's a leading + on addresses with a TOA of 145
-            dc.number = PhoneNumberUtils.stringFromStringAndTOA(dc.number, dc.TOA);
-
-            response.add(dc);
-
-            if (dc.isVoicePrivacy) {
-                mVoicePrivacyOnRegistrants.notifyRegistrants();
-                riljLog("InCall VoicePrivacy is enabled");
-            } else {
-                mVoicePrivacyOffRegistrants.notifyRegistrants();
-                riljLog("InCall VoicePrivacy is disabled");
-            }
-        }
-
-        Collections.sort(response);
-
-        if ((num == 0) && mTestingEmergencyCall.getAndSet(false)) {
-            if (mEmergencyCallbackModeRegistrant != null) {
-                riljLog("responseCallList: call ended, testing emergency call," +
-                            " notify ECM Registrants");
-                mEmergencyCallbackModeRegistrant.notifyRegistrant();
-            }
-        }
-
-        return response;
-    }
-
-    @Override
     public void
     dial(String address, int clirMode, UUSInfo uusInfo, Message result) {
         RILRequest rr;
@@ -662,51 +598,20 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
     protected void
     processUnsolicited (Parcel p, int type) {
         Object ret;
-
         int dataPosition = p.dataPosition();
-        int origResponse = p.readInt();
-        int newResponse = origResponse;
+        int response = p.readInt();
 
-        /* Remap incorrect respones or ignore them */
-        switch (origResponse) {
-            case 1041: //RIL_UNSOL_DC_RT_INFO_CHANGED
-            case RIL_UNSOL_STK_CALL_CONTROL_RESULT:
-            case RIL_UNSOL_DEVICE_READY_NOTI: /* Registrant notification */
-            case RIL_UNSOL_SIM_PB_READY: /* Registrant notification */
-                Rlog.v(RILJ_LOG_TAG,
-                       "codina: ignoring unsolicited response " +
-                       origResponse);
-                return;
-        }
-
-        if (newResponse != origResponse) {
-            riljLog("RIL: remap unsolicited response from " +
-                    origResponse + " to " + newResponse);
-            p.setDataPosition(dataPosition);
-            p.writeInt(newResponse);
-        }
-
-        switch (newResponse) {
-            //case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED: ret =  responseVoid(p); break;
+        switch (response) {
+            case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED: ret =  responseVoid(p); break;
             case RIL_UNSOL_RESPONSE_NEW_BROADCAST_SMS: ret = responseString(p); break;
             case RIL_UNSOL_RIL_CONNECTED: ret = responseInts(p); break;
-            case RIL_UNSOL_AM:
-                ret = responseString(p);
-                break;
-            case RIL_UNSOL_WB_AMR_STATE:
-                  ret = responseInts(p);
-                  break;
-            case RIL_UNSOL_STK_SEND_SMS_RESULT:
-                ret = responseInts(p);
-                break;
-            case RIL_UNSOL_RESPONSE_IMS_NETWORK_STATE_CHANGED:
-                  ret = responseVoid(p);
-                  break;
+            // SAMSUNG STATES
+            case RIL_UNSOL_AM: ret = responseString(p); break;
             case RIL_UNSOL_DUN_PIN_CONTROL_SIGNAL: ret = responseVoid(p); break;
             case RIL_UNSOL_DATA_SUSPEND_RESUME: ret = responseInts(p); break;
             case RIL_UNSOL_STK_CALL_CONTROL_RESULT: ret = responseVoid(p); break;
             case RIL_UNSOL_TWO_MIC_STATE: ret = responseInts(p); break;
-            // SAMSUNG STATES
+
             default:
                 // Rewind the Parcel
                 p.setDataPosition(dataPosition);
@@ -716,23 +621,38 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
                 return;
         }
 
-        switch (newResponse) {
-            case RIL_UNSOL_AM:
-                if (RILJ_LOGD) samsungUnsljLogRet(newResponse, ret);
-                String amString = (String) ret;
-                Rlog.d(RILJ_LOG_TAG, "Executing AM: " + amString);
-                /*
-                try {
-                    Runtime.getRuntime().exec("am " + amString);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Rlog.e(RILJ_LOG_TAG, "am " + amString + " could not be executed.");
-                }*/
-                // Add debug to check if this wants to execute any useful am command
-                Rlog.v(RILJ_LOG_TAG, "codina: am=" + amString);
+        switch (response) {
+            case RIL_UNSOL_RESPONSE_RADIO_STATE_CHANGED:
+                /* has bonus radio state int */
+                int state = p.readInt();
+                Rlog.d(RILJ_LOG_TAG, "Radio state: " + state);
+
+                switch (state) {
+                    case 2:
+                        // RADIO_UNAVAILABLE
+                        state = 1;
+                        break;
+                    case 3:
+                        // RADIO_ON
+                        state = 10;
+                        break;
+                    case 4:
+                        // RADIO_ON
+                        state = 10;
+                        // When SIM is PIN-unlocked, RIL doesn't respond with RIL_UNSOL_RESPONSE_SIM_STATUS_CHANGED.
+                        // We notify the system here.
+                        Rlog.d(RILJ_LOG_TAG, "SIM is PIN-unlocked now");
+                        if (mIccStatusChangedRegistrants != null) {
+                            mIccStatusChangedRegistrants.notifyRegistrants();
+                        }
+                        break;
+                }
+                RadioState newState = getRadioStateFromInt(state);
+                Rlog.d(RILJ_LOG_TAG, "New Radio state: " + state + " (" + newState.toString() + ")");
+                switchToRadioState(newState);
                 break;
             case RIL_UNSOL_RESPONSE_NEW_BROADCAST_SMS:
-                if (RILJ_LOGD) unsljLogRet(newResponse, ret);
+                if (RILJ_LOGD) unsljLogRet(response, ret);
 
                 if (mGsmBroadcastSmsRegistrant != null) {
                     mGsmBroadcastSmsRegistrant
@@ -740,7 +660,7 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
                 }
                 break;
             case RIL_UNSOL_RIL_CONNECTED:
-                if (RILJ_LOGD) unsljLogRet(newResponse, ret);
+                if (RILJ_LOGD) unsljLogRet(response, ret);
 
                 // Initial conditions
                 setRadioPower(false, null);
@@ -748,17 +668,30 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
                 setCdmaSubscriptionSource(mCdmaSubscription, null);
                 notifyRegistrantsRilConnectionChanged(((int[])ret)[0]);
                 break;
+            // SAMSUNG STATES
+            case RIL_UNSOL_AM:
+                if (RILJ_LOGD) samsungUnsljLogRet(response, ret);
+                String amString = (String) ret;
+                Rlog.d(RILJ_LOG_TAG, "Executing AM: " + amString);
+
+                try {
+                    Runtime.getRuntime().exec("am " + amString);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    Rlog.e(RILJ_LOG_TAG, "am " + amString + " could not be executed.");
+                }
+                break;
             case RIL_UNSOL_DUN_PIN_CONTROL_SIGNAL:
-                if (RILJ_LOGD) samsungUnsljLogRet(newResponse, ret);
+                if (RILJ_LOGD) samsungUnsljLogRet(response, ret);
                 break;
             case RIL_UNSOL_DATA_SUSPEND_RESUME:
-                if (RILJ_LOGD) samsungUnsljLogRet(newResponse, ret);
+                if (RILJ_LOGD) samsungUnsljLogRet(response, ret);
                 break;
             case RIL_UNSOL_STK_CALL_CONTROL_RESULT:
-                if (RILJ_LOGD) samsungUnsljLogRet(newResponse, ret);
+                if (RILJ_LOGD) samsungUnsljLogRet(response, ret);
                 break;
             case RIL_UNSOL_TWO_MIC_STATE:
-                if (RILJ_LOGD) samsungUnsljLogRet(newResponse, ret);
+                if (RILJ_LOGD) samsungUnsljLogRet(response, ret);
                 break;
         }
     }
@@ -791,6 +724,97 @@ public class SamsungU8500RIL extends RIL implements CommandsInterface {
 
     protected void samsungUnsljLogvRet(int response, Object ret) {
         riljLogv("[UNSL]< " + samsungResponseToString(response) + " " + retToString(response, ret));
+    }
+
+    @Override
+    protected Object
+    responseCallList(Parcel p) {
+        int num;
+        boolean isVideo, isVoicePrivacy;
+        ArrayList<DriverCall> response;
+        DriverCall dc;
+        int dataAvail = p.dataAvail();
+        int pos = p.dataPosition();
+        int size = p.dataSize();
+
+        Rlog.d(RILJ_LOG_TAG, "Parcel size = " + size);
+        Rlog.d(RILJ_LOG_TAG, "Parcel pos = " + pos);
+        Rlog.d(RILJ_LOG_TAG, "Parcel dataAvail = " + dataAvail);
+
+        //Samsung changes
+        num = p.readInt();
+
+        Rlog.d(RILJ_LOG_TAG, "num = " + num);
+        response = new ArrayList<DriverCall>(num);
+
+        for (int i = 0 ; i < num ; i++) {
+
+            dc                      = new DriverCall();
+            dc.state                = DriverCall.stateFromCLCC(p.readInt());
+            dc.index                = p.readInt();
+            dc.TOA                  = p.readInt();
+            dc.isMpty               = (0 != p.readInt());
+            dc.isMT                 = (0 != p.readInt());
+            dc.als                  = p.readInt();
+            dc.isVoice              = (0 != p.readInt());
+            isVideo                 = (0 != p.readInt());
+            isVoicePrivacy          = (0 != p.readInt());
+            dc.isVoicePrivacy       = isVoicePrivacy;
+            dc.number               = p.readString();
+            int np                  = 0;
+            dc.numberPresentation   = 1;
+            dc.name                 = null;
+            dc.namePresentation     = 0;
+            int uusInfoPresent      = 0;
+
+            Rlog.d(RILJ_LOG_TAG, "state = " + dc.state);
+            Rlog.d(RILJ_LOG_TAG, "index = " + dc.index);
+            Rlog.d(RILJ_LOG_TAG, "state = " + dc.TOA);
+            Rlog.d(RILJ_LOG_TAG, "isMpty = " + dc.isMpty);
+            Rlog.d(RILJ_LOG_TAG, "isMT = " + dc.isMT);
+            Rlog.d(RILJ_LOG_TAG, "als = " + dc.als);
+            Rlog.d(RILJ_LOG_TAG, "isVoice = " + dc.isVoice);
+            Rlog.d(RILJ_LOG_TAG, "isVideo = " + isVideo);
+            Rlog.d(RILJ_LOG_TAG, "number = " + dc.number);
+            Rlog.d(RILJ_LOG_TAG, "np = " + np);
+            Rlog.d(RILJ_LOG_TAG, "name = " + dc.name);
+            Rlog.d(RILJ_LOG_TAG, "namePresentation = " + dc.namePresentation);
+            Rlog.d(RILJ_LOG_TAG, "uusInfoPresent = " + uusInfoPresent);
+
+            if (uusInfoPresent == 1) {
+                dc.uusInfo = new UUSInfo();
+                dc.uusInfo.setType(p.readInt());
+                dc.uusInfo.setDcs(p.readInt());
+                byte[] userData = p.createByteArray();
+                dc.uusInfo.setUserData(userData);
+                Rlog.v(RILJ_LOG_TAG, String.format("Incoming UUS : type=%d, dcs=%d, length=%d",
+                        dc.uusInfo.getType(), dc.uusInfo.getDcs(),
+                        dc.uusInfo.getUserData().length));
+                Rlog.v(RILJ_LOG_TAG, "Incoming UUS : data (string)="
+                        + new String(dc.uusInfo.getUserData()));
+                Rlog.v(RILJ_LOG_TAG, "Incoming UUS : data (hex): "
+                        + IccUtils.bytesToHexString(dc.uusInfo.getUserData()));
+            } else {
+                Rlog.v(RILJ_LOG_TAG, "Incoming UUS : NOT present!");
+            }
+
+            // Make sure there's a leading + on addresses with a TOA of 145
+            dc.number = PhoneNumberUtils.stringFromStringAndTOA(dc.number, dc.TOA);
+
+            response.add(dc);
+
+            if (dc.isVoicePrivacy) {
+                mVoicePrivacyOnRegistrants.notifyRegistrants();
+                Rlog.d(RILJ_LOG_TAG, "InCall VoicePrivacy is enabled");
+            } else {
+                mVoicePrivacyOffRegistrants.notifyRegistrants();
+                Rlog.d(RILJ_LOG_TAG, "InCall VoicePrivacy is disabled");
+            }
+        }
+
+        Collections.sort(response);
+
+        return response;
     }
 
     @Override
