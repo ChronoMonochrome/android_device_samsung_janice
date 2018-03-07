@@ -1,4 +1,4 @@
-LOCAL_PATH := device/samsung/codina
+LOCAL_PATH := device/samsung/janice
 
 # DEVICE_ENABLE_SELINUX := true
 # DEVICE_SDCARD_ON_SWIPE := true
@@ -12,7 +12,7 @@ TW_INTERNAL_STORAGE_PATH := "/storage/sdcard0"
 TW_INTERNAL_STORAGE_MOUNT_POINT := "sdcard0"
 TW_EXTERNAL_STORAGE_PATH := "/storage/sdcard1"
 TW_EXTERNAL_STORAGE_MOUNT_POINT := "sdcard1"
-TW_BOARD_CUSTOM_GRAPHICS := ../../../device/samsung/codina/recovery/twrp-graphics.c
+TW_BOARD_CUSTOM_GRAPHICS := ../../../device/samsung/janice/recovery/twrp-graphics.c
 TW_HAS_NO_RECOVERY_PARTITION := true
 TW_FLASH_FROM_STORAGE := true
 TW_INCLUDE_FUSE_EXFAT := true
@@ -43,19 +43,19 @@ endif
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/rootdir/device_tunables.rc:root/device_tunables.rc \
     $(LOCAL_PATH)/rootdir/init.kernel.rc:root/init.kernel.rc \
-    $(LOCAL_PATH)/rootdirnew/init.samsungcodina.rc:root/init.samsungcodina.rc \
-    $(LOCAL_PATH)/rootdir/init.recovery.samsungcodina.rc:root/init.recovery.samsungcodina.rc \
-    $(LOCAL_PATH)/rootdir/ueventd.samsungcodina.rc:root/ueventd.samsungcodina.rc \
-    $(LOCAL_PATH)/rootdir/init.samsungcodina.usb.rc:root/init.samsungcodina.usb.rc
+    $(LOCAL_PATH)/rootdirnew/init.samsungjanice.rc:root/init.samsungjanice.rc \
+    $(LOCAL_PATH)/rootdir/init.recovery.samsungjanice.rc:root/init.recovery.samsungjanice.rc \
+    $(LOCAL_PATH)/rootdir/ueventd.samsungjanice.rc:root/ueventd.samsungjanice.rc \
+    $(LOCAL_PATH)/rootdir/init.samsungjanice.usb.rc:root/init.samsungjanice.usb.rc
 
 ifeq ($(DEVICE_SDCARD_ON_SWIPE),true)
 # fstab
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/rootdirnew/fstab.samsungcodina:root/fstab.samsungcodina
+    $(LOCAL_PATH)/rootdirnew/fstab.samsungjanice:root/fstab.samsungjanice
 else
-# fstab codina
+# fstab janice
 PRODUCT_COPY_FILES += \
-    $(LOCAL_PATH)/rootdir/fstab.samsungcodina:root/fstab.samsungcodina
+    $(LOCAL_PATH)/rootdir/fstab.samsungjanice:root/fstab.samsungjanice
 endif
 
 # TWRP

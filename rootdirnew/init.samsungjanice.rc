@@ -1,5 +1,5 @@
 import /device_tunables.rc
-import /init.samsungcodina.usb.rc
+import /init.samsungjanice.usb.rc
 
 on early-init
     write /sys/class/backlight/panel/brightness 70
@@ -19,11 +19,14 @@ on init
     setprop ro.vold.primary_physical 1
 
     # Setup the global environment
-    #export LD_PRELOAD "/system/lib/libVGL_mali_shim.so"
+    export LD_SHIM_LIBS /system/bin/gpsd|libshim_gps.so:/system/lib/libicuuc.so|libicuuc_51.so:/system/lib/hw/camera.montblanc.so|libcamera_symbols.so:/system/lib/libril.so|libste_ril.so
     export LD_LIBRARY_PATH /vendor/lib:/system/lib:/system/lib/ste_omxcomponents
     export OMX_STE_ENS_COMPONENTS_DIR /system/lib/ste_omxcomponents/
     export OMX_BELLAGIO_LOADER_REGISTRY /system/etc/omxloaders
     export OMX_STE_CSCALL_COMPONENTS_DIR /system/lib/ste_omxcomponents/
+
+    # Preload libjhead for camera
+    export LD_PRELOAD /system/lib/libjhead.so
 
     # Vibetonz
     export VIBE_PIPE_PATH /dev/pipes
@@ -49,8 +52,8 @@ on init
 
 on fs
 
-    mount_all /fstab.samsungcodina
-    swapon_all /fstab.samsungcodina
+    mount_all /fstab.samsungjanice
+    swapon_all /fstab.samsungjanice
 
     # Start CSPSA before synchronously running the factory reset utility that
     # checks the factory reset triggers in sysfs and CSPSA and then formats
@@ -176,6 +179,8 @@ on post-fs-data
     chown system system /efs/wifi/.mac.info
     chmod 0664 /efs/wifi/.mac.info
 
+    mkdir /data/misc/camera 0770 camera camera
+
     # FactoryTest files permission
     mkdir /efs/FactoryApp 0775
     chown radio system /efs/FactoryApp
@@ -231,7 +236,6 @@ on post-fs-data
     mkdir /data/misc/wifi/sockets 0770 wifi wifi
     mkdir /data/misc/wifi/wpa_supplicant 0770 wifi wifi
     mkdir /data/misc/dhcp 0770 dhcp dhcp
-    chown dhcp dhcp /data/misc/dhcp
     chown wifi root /dev/rfkill
 
     # Create directory for STE OMX debug logs
@@ -365,6 +369,10 @@ on boot
     # Modem
     class_start modem
     class_start default
+
+    # Adaptive LMK
+    # write /sys/module/lowmemorykiller/parameters/enable_adaptive_lmk 1
+    # write /sys/module/lowmemorykiller/parameters/vmpressure_file_min 53059
 
 on charger
     write /sys/class/power_supply/battery/batt_lp_charging 1

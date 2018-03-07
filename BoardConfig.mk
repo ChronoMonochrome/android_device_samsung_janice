@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-LOCAL_PATH := device/samsung/codina
+LOCAL_PATH := device/samsung/janice
 
 TARGET_SPECIFIC_HEADER_PATH := $(LOCAL_PATH)/include
 PRODUCT_VENDOR_KERNEL_HEADERS := $(LOCAL_PATH)/kernel-headers
@@ -69,7 +69,7 @@ TARGET_GLOBAL_CPPFLAGS += -mtune=cortex-a9 -mfpu=neon -mfloat-abi=softfp
 # BOARD_CUSTOM_BOOTIMG := true
 BOARD_KERNEL_PAGESIZE := 4096
 BOARD_KERNEL_BASE := 0x40000000
-BOARD_CUSTOM_BOOTIMG_MK := device/samsung/codina/shbootimg.mk
+BOARD_CUSTOM_BOOTIMG_MK := device/samsung/janice/shbootimg.mk
 
 #PLATFORM_GOOGLE_4.9 := true
 
@@ -110,7 +110,7 @@ BOARD_HAVE_BLUETOOTH_BCM := true
 BOARD_BLUEDROID_VENDOR_CONF := $(LOCAL_PATH)/configs/bluetooth/vnd_u8500.txt
 
 # RIL
-BOARD_RIL_CLASS := ../../../device/samsung/codina/configs/ril
+BOARD_RIL_CLASS := ../../../device/samsung/janice/configs/ril
 
 BOARD_PROVIDES_RILD := true
 BOARD_PROVIDES_LIBRIL := true
@@ -146,7 +146,7 @@ BOARD_HAS_NO_MISC_PARTITION := true
 BOARD_HAS_NO_SELECT_BUTTON := true
 BOARD_SUPPRESS_EMMC_WIPE := true
 BOARD_RECOVERY_SWIPE := true
-BOARD_CUSTOM_RECOVERY_KEYMAPPING := ../../../device/samsung/codina/recovery/recovery_keys.c
+BOARD_CUSTOM_RECOVERY_KEYMAPPING := ../../../device/samsung/janice/recovery/recovery_keys.c
 #BOARD_HAS_LARGE_FILESYSTEM := true
 BOARD_CANT_BUILD_RECOVERY_FROM_BOOT_PATCH := true
 
@@ -181,19 +181,19 @@ COMMON_GLOBAL_CFLAGS += -DNO_SECURE_DISCARD
 COMMON_GLOBAL_CPPFLAGS += -DNO_SECURE_DISCARD
 
 # == BEGIN LOCAL CONFIG ==
-TARGET_OTA_ASSERT_DEVICE := codina,,codinap,i8160,GT-I8160
+TARGET_OTA_ASSERT_DEVICE := janice,,janicep,i9070,GT-I9070
 
 TARGET_KERNEL_SOURCE := kernel/codina/chrono
-TARGET_KERNEL_CONFIG := codina_defconfig
-# TARGET_KERNEL_CONFIG := codina_cm13_defconfig
-# TARGET_KERNEL_CONFIG := codina_nodebug_defconfig
-# TARGET_KERNEL_CONFIG := codina_selinux_defconfig
+TARGET_KERNEL_CONFIG := janice_defconfig
+# TARGET_KERNEL_CONFIG := janice_cm13_defconfig
+# TARGET_KERNEL_CONFIG := janice_nodebug_defconfig
+# TARGET_KERNEL_CONFIG := janice_selinux_defconfig
 
 # Bluetooth
 BOARD_BLUETOOTH_BDROID_BUILDCFG_INCLUDE_DIR := $(LOCAL_PATH)/configs/bluetooth/include
 
 # Recovery
-TARGET_RECOVERY_FSTAB := $(LOCAL_PATH)/rootdir/fstab.samsungcodina
+TARGET_RECOVERY_FSTAB := $(LOCAL_PATH)/rootdir/fstab.samsungjanice
 
 # Boot Animation
 TARGET_BOOTANIMATION_PRELOAD := true
@@ -220,13 +220,10 @@ endif
 # Dex Pre-opt
 WITH_DEXPREOPT := true
 DONT_DEXPREOPT_PREBUILTS := true
-
 # Disable compression of precompiled odex with gzip
 WITH_DEXPREOPT_COMP := false
-
 # Enable position-independent code for odex files
 WITH_DEXPREOPT_PIC := true
-
 FTREE_VECTORIZE := true
 FFAST_MATH := true
 FORCE_CUSTOM_GCC := true

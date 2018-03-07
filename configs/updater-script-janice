@@ -1,5 +1,5 @@
-assert(getprop("ro.product.device") == "codina" || getprop("ro.build.product") == "codina" || getprop("ro.product.device") == "" || getprop("ro.build.product") == "" || getprop("ro.product.device") == "codinap" || getprop("ro.build.product") == "codinap" || getprop("ro.product.device") == "i8160" || getprop("ro.build.product") == "i8160" || getprop("ro.product.device") == "GT-I8160" || getprop("ro.build.product") == "GT-I8160" || abort("This package is for device: codina,,codinap,i8160,GT-I8160; this device is " + getprop("ro.product.device") + "."););
-ui_print("Target: samsung/ulti_codina/codina:6.0.1/MHC19J/2dd5b09793:userdebug/test-keys");
+assert(getprop("ro.product.device") == "janice" || getprop("ro.build.product") == "janice" || getprop("ro.product.device") == "" || getprop("ro.build.product") == "" || getprop("ro.product.device") == "janicep" || getprop("ro.build.product") == "janicep" || getprop("ro.product.device") == "i9070" || getprop("ro.build.product") == "i9070" || getprop("ro.product.device") == "GT-I9070" || getprop("ro.build.product") == "GT-I9070" || abort("This package is for device: janice,,janicep,i9070,GT-I9070; this device is " + getprop("ro.product.device") + "."););
+ui_print("Target: samsung/ulti_janice/janice:6.0.1/MHC19J/2dd5b09793:userdebug/test-keys");
 ifelse(is_mounted("/system"), unmount("/system"));
 show_progress(0.750000, 0);
 run_program("/sbin/busybox", "mount", "/system");

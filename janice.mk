@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-LOCAL_PATH := device/samsung/codina
+LOCAL_PATH := device/samsung/janice
 
 DEVICE_PACKAGE_OVERLAYS := $(LOCAL_PATH)/overlay
 
@@ -76,7 +76,7 @@ PRODUCT_COPY_FILES += $(call find-copy-subdir-files,*,$(LOCAL_PATH)/configs/data
 # Updater-script
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/prebuilt/updater:updater \
-    $(LOCAL_PATH)/configs/updater-script-codina:META-INF/com/google/android/updater-script-codina \
+    $(LOCAL_PATH)/configs/updater-script-janice:META-INF/com/google/android/updater-script-janice \
     $(LOCAL_PATH)/configs/wipe.sh:install/wipe.sh
 
 # Bluetooth
@@ -248,7 +248,7 @@ include vendor/samsung/u8500-common/vendor-common.mk
 # == BEGIN LOCAL CONFIG ==
 
 # For better compatibility with ROMs (like Slim, PAC)
-$(call inherit-product, vendor/samsung/u8500-common/codina/codina-vendor-blobs.mk)
+$(call inherit-product, vendor/samsung/u8500-common/janice/janice-vendor-blobs.mk)
 
 # STE Modem
 PRODUCT_COPY_FILES += \
