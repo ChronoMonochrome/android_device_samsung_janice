@@ -109,6 +109,12 @@ BOARD_HAVE_BLUETOOTH := true
 BOARD_HAVE_BLUETOOTH_BCM := true
 BOARD_BLUEDROID_VENDOR_CONF := $(LOCAL_PATH)/configs/bluetooth/vnd_u8500.txt
 
+# Sensors
+BOARD_USE_LEGACY_SENSORS_FUSION := false
+
+# Vibrator
+BOARD_HAS_VIBRATOR_IMPLEMENTATION := ../../device/samsung/janice/vibrator/vibrator.c
+
 # RIL
 BOARD_RIL_CLASS := ../../../device/samsung/janice/configs/ril
 
