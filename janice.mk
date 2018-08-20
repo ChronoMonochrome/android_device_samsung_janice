@@ -202,10 +202,6 @@ PRODUCT_PACKAGES += \
 PRODUCT_PACKAGES += \
     libstlport
 
-# Disable vibrator by using not proper HAL
-PRODUCT_PACKAGES += \
-    vibrator.montblanc
-
 # Gralloc := \
     gralloc.montblanc
 
